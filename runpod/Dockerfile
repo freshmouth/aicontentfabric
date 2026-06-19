@@ -42,7 +42,12 @@ RUN git clone --filter=blob:none --branch "${LTX_GIT_REF}" "${LTX_REPO_URL}" /op
 # environments share the base image's CUDA/Torch packages but isolate Python deps.
 RUN python -m venv --system-site-packages /opt/venvs/ltx && \
     /opt/venvs/ltx/bin/pip install --upgrade pip setuptools wheel && \
-    /opt/venvs/ltx/bin/pip install -e '/opt/ltx-video[inference]'
+    /opt/venvs/ltx/bin/pip install -e '/opt/ltx-video[inference]' && \
+    /opt/venvs/ltx/bin/pip install \
+        torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 \
+        --index-url https://download.pytorch.org/whl/cu118 && \
+    /opt/venvs/ltx/bin/python -c \
+        "import torch; assert torch.__version__.startswith('2.5.1'); assert hasattr(torch, 'xpu')"
 
 RUN python -m venv --system-site-packages /opt/venvs/musetalk && \
     /opt/venvs/musetalk/bin/pip install --upgrade pip 'setuptools<81' wheel && \
