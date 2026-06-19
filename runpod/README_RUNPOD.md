@@ -34,7 +34,7 @@ ghcr.io/YOUR_GITHUB_USERNAME/v2-video-worker:latest
 
 No local Docker image or build cache is created. The workflow uses GitHub's built-in package token, so no registry secret is required. After the first build, make the package public in its GitHub Package settings, or configure GHCR credentials in the RunPod template for a private package.
 
-The image installs LTX and MuseTalk into separate Python virtual environments because their current Transformers dependencies conflict. CUDA and Torch are shared from the base image.
+The image installs LTX and MuseTalk into separate Python virtual environments because their current Transformers dependencies conflict. LTX uses the base PyTorch runtime; MuseTalk uses its supported PyTorch 2.0.1 CUDA 11.8 stack and the matching prebuilt MMCV wheel.
 
 The included `ltx_image_to_video.yaml` uses the LTX 2B 0.9.8 distilled image-conditioning pipeline and disables automatic prompt enhancement. This avoids loading Florence and Llama solely to rewrite the V2 pipeline's existing scene prompts.
 

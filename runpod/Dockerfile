@@ -14,12 +14,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
     RUNPOD_SERVERLESS=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     ca-certificates \
     curl \
     ffmpeg \
     git \
     libgl1 \
     libglib2.0-0 \
+    ninja-build \
     python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
@@ -43,13 +45,16 @@ RUN python -m venv --system-site-packages /opt/venvs/ltx && \
     /opt/venvs/ltx/bin/pip install -e '/opt/ltx-video[inference]'
 
 RUN python -m venv --system-site-packages /opt/venvs/musetalk && \
-    /opt/venvs/musetalk/bin/pip install --upgrade pip setuptools wheel && \
+    /opt/venvs/musetalk/bin/pip install --upgrade pip 'setuptools<81' wheel && \
+    /opt/venvs/musetalk/bin/pip install \
+        torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 \
+        --index-url https://download.pytorch.org/whl/cu118 && \
     /opt/venvs/musetalk/bin/pip install -r /opt/musetalk/requirements.txt && \
-    /opt/venvs/musetalk/bin/pip install --no-cache-dir -U openmim && \
-    /opt/venvs/musetalk/bin/mim install mmengine && \
-    /opt/venvs/musetalk/bin/mim install 'mmcv==2.0.1' && \
-    /opt/venvs/musetalk/bin/mim install 'mmdet==3.1.0' && \
-    /opt/venvs/musetalk/bin/mim install 'mmpose==1.1.0'
+    /opt/venvs/musetalk/bin/pip install 'setuptools<81' 'mmengine>=0.7.1,<1.0.0' && \
+    /opt/venvs/musetalk/bin/pip install \
+        'mmcv==2.0.1' \
+        --find-links https://download.openmmlab.com/mmcv/dist/cu118/torch2.0/index.html && \
+    /opt/venvs/musetalk/bin/pip install 'mmdet==3.1.0' 'mmpose==1.1.0'
 
 COPY start.sh \
     setup_models.py \
