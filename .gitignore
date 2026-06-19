@@ -14,6 +14,8 @@ test_run*/
 project_v2_open_source/
 v2_test*/
 *.tmp.*
+github_run_*/
+github_runs.tmp.json
 assembled_no_subtitles.mp4
 clips.txt
 subtitles.ass
