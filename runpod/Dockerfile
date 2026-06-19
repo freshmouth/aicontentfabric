@@ -64,6 +64,7 @@ RUN python -m venv --system-site-packages /opt/venvs/musetalk && \
         --find-links https://download.openmmlab.com/mmcv/dist/cu118/torch2.0/index.html && \
     /opt/venvs/musetalk/bin/pip install --no-build-isolation 'chumpy==0.70' && \
     /opt/venvs/musetalk/bin/pip install 'mmdet==3.1.0' 'mmpose==1.1.0' && \
+    cd /opt/musetalk && \
     /opt/venvs/musetalk/bin/python -c \
         "import mmcv, mmdet, mmpose, torch; from musetalk.utils.utils import load_all_model; assert torch.__version__.startswith('2.0.1')"
 
