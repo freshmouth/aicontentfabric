@@ -245,8 +245,11 @@ def health_payload() -> dict[str, Any]:
     ]
     return {
         "status": "healthy" if all(path.is_file() for path in ltx_files + musetalk_files) else "models_missing",
+        "worker_release": os.getenv("WORKER_RELEASE", "unknown"),
         "cuda_available": torch.cuda.is_available(),
         "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+        "torch_version": torch.__version__,
+        "cuda_version": torch.version.cuda,
         "ltx_ready": all(path.is_file() and path.stat().st_size > 0 for path in ltx_files),
         "musetalk_ready": all(path.is_file() and path.stat().st_size > 0 for path in musetalk_files),
         "models_root": str(MODEL_ROOT),

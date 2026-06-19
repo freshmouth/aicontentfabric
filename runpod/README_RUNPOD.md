@@ -26,15 +26,18 @@ docker push YOUR_REGISTRY/v2-video-worker:latest
 
 ### Cloud build when local Docker storage is constrained
 
-The repository includes `.github/workflows/build-runpod.yml`. Push the repository to GitHub, open **Actions > Build RunPod V2 image**, and select **Run workflow**. GitHub builds and publishes:
+The repository includes `.github/workflows/build-runpod.yml`. Push the repository to GitHub, open **Actions > Build RunPod V2 image**, and select **Run workflow**. GitHub builds and publishes a convenience tag and an immutable release tag:
 
 ```text
 ghcr.io/YOUR_GITHUB_USERNAME/v2-video-worker:latest
+ghcr.io/YOUR_GITHUB_USERNAME/v2-video-worker:FULL_GIT_SHA
 ```
 
 No local Docker image or build cache is created. The workflow uses GitHub's built-in package token, so no registry secret is required. After the first build, make the package public in its GitHub Package settings, or configure GHCR credentials in the RunPod template for a private package.
 
-The image installs LTX and MuseTalk into separate Python virtual environments because their current Transformers dependencies conflict. LTX uses the base PyTorch runtime; MuseTalk uses its supported PyTorch 2.0.1 CUDA 11.8 stack and the matching prebuilt MMCV wheel.
+Deploy the full Git SHA tag. Do not deploy `latest` to production. The Dockerfile pins the exact LTX and MuseTalk source revisions, pins the worker dependencies, and imports both inference stacks during the build. A broken dependency therefore fails in GitHub Actions before RunPod can pull it.
+
+The image installs LTX and MuseTalk into separate Python virtual environments because their current Transformers dependencies conflict. LTX uses the base PyTorch 2.5.1 CUDA 12.4 runtime; MuseTalk uses its supported PyTorch 2.0.1 CUDA 11.8 stack and the matching prebuilt MMCV wheel.
 
 The included `ltx_image_to_video.yaml` uses the LTX 2B 0.9.8 distilled image-conditioning pipeline and disables automatic prompt enhancement. This avoids loading Florence and Llama solely to rewrite the V2 pipeline's existing scene prompts.
 
@@ -127,6 +130,11 @@ Create a RunPod Serverless endpoint using the image and attached Network Volume:
 4. Use a GPU with enough VRAM for the selected LTX checkpoint.
 5. Keep `RUNPOD_SERVERLESS=1`.
 6. Configure an idle timeout so the worker scales down after jobs finish.
+7. Set `WORKER_RELEASE` to the deployed Git SHA and verify that the health response returns the same value.
+
+Use a container disk of at least 60 GB. Keep the model cache on the Network Volume rather than downloading it onto ephemeral container storage.
+
+Check live GPU stock before choosing the Network Volume region. A Network Volume restricts the endpoint to that region. Prefer a region with multiple compatible 24 GB-or-larger GPU types; otherwise a scale-to-zero worker can remain throttled while other regions have capacity.
 
 With minimum workers set to zero, GPU billing occurs only while a worker is starting or processing jobs. The persistent Network Volume continues to retain model files independently.
 
