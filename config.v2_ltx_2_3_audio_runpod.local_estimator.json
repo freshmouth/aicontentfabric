@@ -1,0 +1,94 @@
+{
+  "pipeline": "v2_open_source",
+  "voice_provider": "elevenlabs",
+  "image_provider": "openai_images",
+  "video_provider": "ltx_2_3_audio",
+  "lipsync_provider": "none",
+  "providers": {
+    "voice": [
+      "elevenlabs"
+    ],
+    "transcriber": [
+      "local_estimator"
+    ],
+    "image": [
+      "openai_images"
+    ],
+    "video": [
+      "ltx_2_3_audio"
+    ],
+    "lipsync": [
+      "none"
+    ]
+  },
+  "ltx_2_3_audio": {
+    "endpoint_url": "RUNPOD_LTX_AUDIO_ENDPOINT_URL",
+    "status_url_template": "RUNPOD_LTX_AUDIO_STATUS_URL_TEMPLATE",
+    "api_key_env": "RUNPOD_API_KEY",
+    "api_key_required": true,
+    "api_key_header": "Authorization",
+    "api_key_prefix": "Bearer ",
+    "request_timeout_seconds": 120,
+    "generation_timeout_seconds": 2400,
+    "poll_interval_seconds": 10,
+    "request_retries": 2,
+    "input_wrapper": "input",
+    "input": {
+      "action": "generate_ltx_audio_scene",
+      "generation_resolution": "1088x1920",
+      "frame_rate": 25,
+      "max_frames": 257,
+      "num_inference_steps": 30,
+      "a2v_guidance_scale": 2.0,
+      "video_cfg_guidance_scale": 3.0,
+      "quantization": "fp8-cast"
+    },
+    "model": "open_source_ltx_2_3_a2vid",
+    "resolution": "1080x1920",
+    "guidance_scale": 9,
+    "min_audio_duration_seconds": 2,
+    "max_audio_duration_seconds": 20,
+    "max_image_data_uri_mb": 7,
+    "max_audio_data_uri_mb": 15,
+    "jpeg_reencode_if_large": true,
+    "jpeg_quality": 92,
+    "include_scene_id": true,
+    "job_id_fields": [
+      "id",
+      "job_id"
+    ],
+    "status_fields": [
+      "status"
+    ],
+    "completed_statuses": [
+      "COMPLETED",
+      "completed",
+      "succeeded",
+      "success",
+      "finished"
+    ],
+    "failed_statuses": [
+      "FAILED",
+      "failed",
+      "error",
+      "cancelled",
+      "canceled",
+      "timeout",
+      "TIMED_OUT"
+    ],
+    "output_url_fields": [
+      "video_url",
+      "output_url",
+      "download_url",
+      "url"
+    ],
+    "output_base64_fields": [
+      "video_base64",
+      "output_base64",
+      "mp4_base64"
+    ]
+  },
+  "scene_transition": "hard_cut",
+  "subtitles_enabled": true,
+  "ffmpeg_timeout_seconds": 180
+}

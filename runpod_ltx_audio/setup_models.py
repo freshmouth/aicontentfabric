@@ -10,7 +10,8 @@ from filelock import FileLock
 from huggingface_hub import hf_hub_download, snapshot_download
 
 
-MODEL_ROOT = Path("/workspace/models")
+DEFAULT_PERSIST_ROOT = Path("/runpod-volume") if Path("/runpod-volume").is_dir() else Path("/workspace")
+MODEL_ROOT = Path(os.getenv("MODEL_ROOT", DEFAULT_PERSIST_ROOT / "models"))
 HF_HOME = Path(os.getenv("HF_HOME", MODEL_ROOT / "huggingface"))
 LTX2_MODEL_PATH = Path(os.getenv("LTX2_MODEL_PATH", MODEL_ROOT / "ltx2"))
 HF_TOKEN = os.getenv("HF_TOKEN") or None
@@ -29,6 +30,7 @@ GEMMA_REPO = os.getenv("GEMMA_MODEL_REPO", "google/gemma-3-12b-it-qat-q4_0-unqua
 
 
 def main() -> int:
+    validate_hf_token()
     ensure_under_model_root(LTX2_MODEL_PATH)
     MODEL_ROOT.mkdir(parents=True, exist_ok=True)
     HF_HOME.mkdir(parents=True, exist_ok=True)
@@ -38,6 +40,16 @@ def main() -> int:
         setup_ltx2()
     print("LTX-2.3 audio model setup complete.")
     return 0
+
+
+def validate_hf_token() -> None:
+    if HF_TOKEN and not HF_TOKEN.startswith("hf_"):
+        raise RuntimeError("HF_TOKEN is set but does not look like a Hugging Face token. It must start with 'hf_'.")
+    if GEMMA_REPO.startswith("google/gemma") and not HF_TOKEN:
+        raise RuntimeError(
+            "HF_TOKEN is required for Gemma model download. Create a Hugging Face token, accept Gemma access, "
+            "and set HF_TOKEN on the RunPod template."
+        )
 
 
 def setup_ltx2() -> None:

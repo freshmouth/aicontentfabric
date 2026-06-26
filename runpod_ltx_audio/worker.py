@@ -21,9 +21,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 
 
-MODEL_ROOT = Path("/workspace/models")
-OUTPUT_ROOT = Path(os.getenv("OUTPUT_ROOT", "/workspace/outputs"))
-LTX2_MODEL_PATH = Path(os.getenv("LTX2_MODEL_PATH", "/workspace/models/ltx2"))
+DEFAULT_PERSIST_ROOT = Path("/runpod-volume") if Path("/runpod-volume").is_dir() else Path("/workspace")
+MODEL_ROOT = Path(os.getenv("MODEL_ROOT", DEFAULT_PERSIST_ROOT / "models"))
+OUTPUT_ROOT = Path(os.getenv("OUTPUT_ROOT", DEFAULT_PERSIST_ROOT / "outputs"))
+LTX2_MODEL_PATH = Path(os.getenv("LTX2_MODEL_PATH", MODEL_ROOT / "ltx2"))
 LTX2_REPO_PATH = Path(os.getenv("LTX2_REPO_PATH", "/opt/ltx2"))
 LTX2_PYTHON = os.getenv("LTX2_PYTHON", "/opt/ltx2/.venv/bin/python")
 FFMPEG = os.getenv("FFMPEG_PATH", "ffmpeg")
