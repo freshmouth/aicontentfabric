@@ -38,8 +38,8 @@ RUN /root/.local/bin/uv sync --frozen
 
 WORKDIR /app/runpod_ltx_audio
 COPY requirements.txt /app/runpod_ltx_audio/requirements.txt
-RUN "${LTX2_PYTHON}" -m pip install --upgrade pip setuptools wheel && \
-    "${LTX2_PYTHON}" -m pip install -r /app/runpod_ltx_audio/requirements.txt
+RUN /root/.local/bin/uv pip install --python "${LTX2_PYTHON}" \
+    -r /app/runpod_ltx_audio/requirements.txt
 
 COPY start.sh setup_models.py worker.py /app/runpod_ltx_audio/
 RUN chmod +x /app/runpod_ltx_audio/start.sh
