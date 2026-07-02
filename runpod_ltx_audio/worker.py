@@ -27,6 +27,9 @@ OUTPUT_ROOT = Path(os.getenv("OUTPUT_ROOT", DEFAULT_PERSIST_ROOT / "outputs"))
 LTX2_MODEL_PATH = Path(os.getenv("LTX2_MODEL_PATH", MODEL_ROOT / "ltx2"))
 LTX2_REPO_PATH = Path(os.getenv("LTX2_REPO_PATH", "/opt/ltx2"))
 LTX2_PYTHON = os.getenv("LTX2_PYTHON", "/opt/ltx2/.venv/bin/python")
+LOG_ROOT = Path(os.getenv("LOG_ROOT", DEFAULT_PERSIST_ROOT / "logs"))
+SETUP_LOG_PATH = Path(os.getenv("SETUP_LOG_PATH", LOG_ROOT / "ltx2_audio_setup.log"))
+SETUP_STATUS_PATH = Path(os.getenv("SETUP_STATUS_PATH", LOG_ROOT / "ltx2_audio_setup.status"))
 FFMPEG = os.getenv("FFMPEG_PATH", "ffmpeg")
 FFPROBE = os.getenv("FFPROBE_PATH", "ffprobe")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
@@ -39,12 +42,24 @@ DISTILLED_LORA_FILE = os.getenv("LTX2_DISTILLED_LORA_FILE", "ltx-2.3-22b-distill
 
 app = FastAPI(title="LTX-2.3 Audio-to-Video Worker", version="1.0.0")
 OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+LOG_ROOT.mkdir(parents=True, exist_ok=True)
 app.mount("/outputs", StaticFiles(directory=str(OUTPUT_ROOT)), name="outputs")
 
 
 @app.get("/health")
 def health() -> dict[str, Any]:
     return health_payload()
+
+
+@app.get("/setup_log")
+def setup_log(lines: int = 120) -> dict[str, Any]:
+    limit = max(1, min(int(lines), 500))
+    return {
+        "status_path": str(SETUP_STATUS_PATH),
+        "setup_status": read_text_if_exists(SETUP_STATUS_PATH),
+        "log_path": str(SETUP_LOG_PATH),
+        "tail": tail_text(SETUP_LOG_PATH, limit),
+    }
 
 
 @app.post("/generate_ltx_audio_scene")
@@ -197,6 +212,8 @@ def health_payload() -> dict[str, Any]:
         "ltx2_audio_ready": ready,
         "models_root": str(MODEL_ROOT),
         "outputs_root": str(OUTPUT_ROOT),
+        "setup_status": read_text_if_exists(SETUP_STATUS_PATH),
+        "setup_log_path": str(SETUP_LOG_PATH),
     }
 
 
@@ -376,6 +393,19 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def read_text_if_exists(path: Path) -> str:
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8", errors="replace").strip()
+
+
+def tail_text(path: Path, lines: int) -> str:
+    if not path.exists():
+        return ""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    return "\n".join(text.splitlines()[-lines:])
 
 
 if __name__ == "__main__":
