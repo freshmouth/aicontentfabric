@@ -1,0 +1,42 @@
+name: Publish Reel 2026-07-12 09:00
+
+on:
+  schedule:
+    - cron: "0 15 12 7 *"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+      FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+      META_GRAPH_SSL_NO_VERIFY: "0"
+      VIDEO_URL: "https://storage.googleapis.com/ai-content-factory-501821-omni-outputs/meta-reels/20260710_211636_final-video-publish-ready.mp4"
+      CAPTION: "Your salad dressing might be dessert oil. Comment LABEL and I'll send the 3 things I check before a dressing goes in my cart."
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download hosted video
+        run: |
+          curl -L --fail --retry 3 --retry-delay 5 "$VIDEO_URL" -o final_video_publish_ready.mp4
+          test -s final_video_publish_ready.mp4
+
+      - name: Publish to Instagram and Facebook
+        run: |
+          python -m social_scheduler.scheduler \
+            --config social_scheduler/config.meta.github.json \
+            publish-now \
+            --video final_video_publish_ready.mp4 \
+            --public-video-url "$VIDEO_URL" \
+            --caption "$CAPTION" \
+            --platforms instagram,facebook \
+            --skip-hosting

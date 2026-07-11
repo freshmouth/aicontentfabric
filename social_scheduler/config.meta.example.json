@@ -1,0 +1,21 @@
+{
+  "meta_graph": {
+    "graph_version": "v23.0",
+    "instagram_user_id": "YOUR_INSTAGRAM_BUSINESS_OR_CREATOR_IG_USER_ID",
+    "instagram_access_token_env": "INSTAGRAM_ACCESS_TOKEN",
+    "instagram_api_base": "auto",
+    "facebook_page_id": "YOUR_FACEBOOK_PAGE_ID",
+    "facebook_access_token_env": "FACEBOOK_PAGE_ACCESS_TOKEN",
+    "facebook_mode": "reels",
+    "poll_seconds": 8,
+    "timeout_seconds": 900
+  },
+  "google_cloud_storage": {
+    "enabled": true,
+    "bucket": "ai-content-factory-501821-omni-outputs",
+    "prefix": "meta-reels",
+    "url_mode": "public",
+    "make_public": true,
+    "signed_url_duration": "2h"
+  }
+}
