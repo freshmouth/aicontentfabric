@@ -1,0 +1,18 @@
+{
+  "campaigns": [
+    {
+      "campaign_id": "salad_dressing_label_guide",
+      "enabled": true,
+      "platforms": ["instagram", "facebook"],
+      "media_ids": {
+        "instagram": ["YOUR_INSTAGRAM_REEL_MEDIA_ID"],
+        "facebook": ["YOUR_FACEBOOK_POST_OR_REEL_ID"]
+      },
+      "keywords": ["LABEL"],
+      "public_reply": "Sent it to you! Check your messages.",
+      "private_message": "Hi {first_name}, here is the supermarket label guide you requested:\n\n{asset_url}",
+      "asset_url": "https://storage.googleapis.com/YOUR_BUCKET/cta-assets/label-guide.pdf"
+    }
+  ]
+}
+

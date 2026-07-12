@@ -1,0 +1,17 @@
+{
+  "campaigns": [
+    {
+      "campaign_id": "configure_before_enabling",
+      "enabled": false,
+      "platforms": ["instagram", "facebook"],
+      "media_ids": {
+        "instagram": ["*"],
+        "facebook": ["*"]
+      },
+      "keywords": ["LABEL"],
+      "public_reply": "Sent it to you! Check your messages.",
+      "private_message": "Here is the guide you requested:\n\n{asset_url}",
+      "asset_url": "https://storage.googleapis.com/YOUR_BUCKET/cta-assets/label-guide.pdf"
+    }
+  ]
+}
