@@ -62,6 +62,26 @@ class AutomationTests(unittest.TestCase):
         self.assertEqual(extract_comment_events(instagram)[0].platform, "instagram")
         self.assertEqual(extract_comment_events(facebook)[0].platform, "facebook")
 
+    def test_extracts_direct_instagram_entry_shape(self):
+        payload = {
+            "object": "instagram",
+            "entry": [
+                {
+                    "id": "ig-account",
+                    "field": "comments",
+                    "value": {
+                        "id": "ig-direct-comment",
+                        "text": "LABEL",
+                        "media": {"id": "ig-media"},
+                        "from": {"username": "ana"},
+                    },
+                }
+            ],
+        }
+        event = extract_comment_events(payload)[0]
+        self.assertEqual(event.comment_id, "ig-direct-comment")
+        self.assertEqual(event.media_id, "ig-media")
+
     def test_signed_webhook_delivers_once(self):
         payload = {"object": "instagram", "entry": [{"changes": [{"field": "comments", "value": {"id": "ig-c", "text": "LABEL please", "media": {"id": "ig-media"}, "from": {"id": "person", "username": "Ana"}}}]}]}
         body = json.dumps(payload, separators=(",", ":")).encode()

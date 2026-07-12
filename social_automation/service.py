@@ -39,7 +39,7 @@ def create_app(*, registry=None, store=None, delivery=None) -> Flask:
         mode = request.args.get("hub.mode", "")
         token = request.args.get("hub.verify_token", "")
         challenge = request.args.get("hub.challenge", "")
-        expected = os.environ.get("META_WEBHOOK_VERIFY_TOKEN", "")
+        expected = os.environ.get("META_WEBHOOK_VERIFY_TOKEN", "").strip()
         if mode == "subscribe" and expected and hmac.compare_digest(token, expected):
             return Response(challenge, status=200, mimetype="text/plain")
         return jsonify({"error": "webhook verification failed"}), 403

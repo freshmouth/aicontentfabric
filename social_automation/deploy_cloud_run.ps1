@@ -6,10 +6,10 @@ param(
     [string]$FacebookPageId = "1164431006757522"
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 $env:CLOUDSDK_AUTH_DISABLE_SSL_VALIDATION = "True"
 $repository = "ai-content-factory"
-$image = "$Region-docker.pkg.dev/$ProjectId/$repository/$Service`:latest"
+$image = "${Region}-docker.pkg.dev/$ProjectId/$repository/$Service`:latest"
 $serviceAccountName = "meta-comment-automation"
 $serviceAccount = "$serviceAccountName@$ProjectId.iam.gserviceaccount.com"
 
@@ -29,6 +29,7 @@ gcloud.cmd projects add-iam-policy-binding $ProjectId --member "serviceAccount:$
 gcloud.cmd projects add-iam-policy-binding $ProjectId --member "serviceAccount:$serviceAccount" --role "roles/secretmanager.secretAccessor" --quiet | Out-Null
 
 gcloud.cmd builds submit social_automation --config social_automation/cloudbuild.yaml --substitutions "_REGION=$Region,_SERVICE=$Service"
+if ($LASTEXITCODE -ne 0) { throw "Cloud Build failed." }
 
 gcloud.cmd run deploy $Service `
     --image $image `
@@ -42,6 +43,7 @@ gcloud.cmd run deploy $Service `
     --timeout 120 `
     --set-env-vars "META_GRAPH_VERSION=v23.0,INSTAGRAM_USER_ID=$InstagramUserId,FACEBOOK_PAGE_ID=$FacebookPageId,DELIVERY_STORE=firestore,CAMPAIGNS_FILE=social_automation/campaigns.json" `
     --set-secrets "META_APP_SECRET=meta-app-secret:latest,META_WEBHOOK_VERIFY_TOKEN=meta-webhook-verify-token:latest,INSTAGRAM_ACCESS_TOKEN=instagram-access-token:latest,FACEBOOK_PAGE_ACCESS_TOKEN=facebook-page-access-token:latest"
+if ($LASTEXITCODE -ne 0) { throw "Cloud Run deployment failed." }
 
 $url = gcloud.cmd run services describe $Service --region $Region --format "value(status.url)"
 Write-Host "Health: $url/health"

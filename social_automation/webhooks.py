@@ -17,7 +17,10 @@ def extract_comment_events(payload: dict[str, Any]) -> list[CommentEvent]:
 def _extract_instagram(payload: dict[str, Any]) -> list[CommentEvent]:
     events: list[CommentEvent] = []
     for entry in payload.get("entry", []):
-        for change in entry.get("changes", []):
+        changes = entry.get("changes", [])
+        if not changes and entry.get("field"):
+            changes = [{"field": entry.get("field"), "value": entry.get("value") or {}}]
+        for change in changes:
             if str(change.get("field") or "").lower() not in {"comments", "live_comments"}:
                 continue
             value = change.get("value") or {}
@@ -69,4 +72,3 @@ def _extract_facebook(payload: dict[str, Any]) -> list[CommentEvent]:
                 )
             )
     return events
-

@@ -49,6 +49,13 @@ python -m pip install --user -r social_automation\requirements.txt
 python -m unittest discover -s social_automation\tests -v
 ```
 
+Generate the example CTA PDF with:
+
+```powershell
+python -m pip install --user -r social_automation\assets\requirements.txt
+python social_automation\assets\generate_label_guide.py
+```
+
 For a local server, use JSON deduplication and unsigned webhooks only for local testing:
 
 ```powershell

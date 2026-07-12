@@ -1,8 +1,8 @@
 {
   "campaigns": [
     {
-      "campaign_id": "configure_before_enabling",
-      "enabled": false,
+      "campaign_id": "salad_dressing_label_guide_v1",
+      "enabled": true,
       "platforms": ["instagram", "facebook"],
       "media_ids": {
         "instagram": ["*"],
@@ -10,8 +10,8 @@
       },
       "keywords": ["LABEL"],
       "public_reply": "Sent it to you! Check your messages.",
-      "private_message": "Here is the guide you requested:\n\n{asset_url}",
-      "asset_url": "https://storage.googleapis.com/YOUR_BUCKET/cta-assets/label-guide.pdf"
+      "private_message": "Hi {first_name}, here is the 30-second salad dressing label guide you requested:\n\n{asset_url}",
+      "asset_url": "https://storage.googleapis.com/ai-content-factory-501821-omni-outputs/cta-assets/salad-dressing-label-guide-v1.pdf"
     }
   ]
 }
