@@ -113,7 +113,7 @@ class MetaGraphClient:
             time.sleep(max(2, self.config.poll_seconds))
         raise MetaGraphError(f"Timed out waiting for Instagram container {creation_id}. Last status: {last}")
 
-    def publish_facebook_reel(self, *, video_path: Path, caption: str) -> dict[str, Any]:
+    def publish_facebook_reel(self, *, video_path: Path, caption: str, video_url: str = "") -> dict[str, Any]:
         if not self.config.facebook_page_id:
             raise MetaGraphError("facebook_page_id is required for Facebook publishing.")
         video_path = Path(video_path)
@@ -131,7 +131,12 @@ class MetaGraphClient:
         upload_url = str(start.get("upload_url") or "").strip()
         if not video_id or not upload_url:
             raise MetaGraphError(f"Facebook Reels start response missing video_id/upload_url: {start}")
-        upload = upload_binary_to_url(upload_url, video_path, token=token)
+        if video_url.startswith(("http://", "https://")):
+            upload = upload_hosted_to_url(upload_url, video_url, token=token)
+            upload_mode = "hosted"
+        else:
+            upload = upload_binary_to_url(upload_url, video_path, token=token)
+            upload_mode = "local"
         finish = self.post(
             f"/{self.config.facebook_page_id}/video_reels",
             token=token,
@@ -139,17 +144,41 @@ class MetaGraphClient:
                 "upload_phase": "finish",
                 "video_id": video_id,
                 "description": caption,
-                "published": "true",
+                "video_state": "PUBLISHED",
             },
         )
+        status = self.wait_for_facebook_video(video_id, token=token)
         return {
             "platform": "facebook",
             "mode": "reels",
             "video_id": video_id,
             "upload_response": upload,
             "publish_response": finish,
+            "upload_mode": upload_mode,
+            "status_response": status,
+            "permalink_url": status.get("permalink_url"),
             "post_id": finish.get("post_id") or finish.get("id") or video_id,
         }
+
+    def wait_for_facebook_video(self, video_id: str, *, token: str) -> dict[str, Any]:
+        deadline = time.monotonic() + self.config.timeout_seconds
+        last: dict[str, Any] = {}
+        while time.monotonic() < deadline:
+            last = self.get(
+                f"/{video_id}",
+                token=token,
+                params={"fields": "id,status,permalink_url,created_time"},
+            )
+            status = dict(last.get("status") or {})
+            video_status = str(status.get("video_status") or "").lower()
+            publishing = dict(status.get("publishing_phase") or {})
+            publishing_status = str(publishing.get("status") or "").lower()
+            if video_status in {"error", "expired"} or publishing_status == "error":
+                raise MetaGraphError(f"Facebook Reel {video_id} failed: {last}")
+            if video_status == "ready" and publishing_status in {"complete", "completed"}:
+                return last
+            time.sleep(max(2, self.config.poll_seconds))
+        raise MetaGraphError(f"Timed out waiting for Facebook Reel {video_id}. Last status: {last}")
 
     def publish_facebook_page_video(self, *, video_path: Path, caption: str, token: str) -> dict[str, Any]:
         response = self.post_multipart(
@@ -233,13 +262,30 @@ class MetaGraphClient:
 
 
 def upload_binary_to_url(upload_url: str, video_path: Path, *, token: str) -> dict[str, Any]:
+    file_size = video_path.stat().st_size
     request = urllib.request.Request(
         upload_url,
         data=video_path.read_bytes(),
         method="POST",
         headers={
             "Authorization": f"OAuth {token}",
+            "offset": "0",
+            "file_size": str(file_size),
             "Content-Type": "application/octet-stream",
+            "User-Agent": "ai-content-factory-meta-scheduler/1.0",
+        },
+    )
+    return open_json(request, timeout=300)
+
+
+def upload_hosted_to_url(upload_url: str, video_url: str, *, token: str) -> dict[str, Any]:
+    request = urllib.request.Request(
+        upload_url,
+        data=b"",
+        method="POST",
+        headers={
+            "Authorization": f"OAuth {token}",
+            "file_url": video_url,
             "User-Agent": "ai-content-factory-meta-scheduler/1.0",
         },
     )

@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "cta_keyword": "LABEL",
+  "concepts": [
+    {
+      "id": "salad_dressing_label_trap",
+      "hook_overlay": "YOU SKIPPED DESSERT. THEN POURED IT ON YOUR SALAD.",
+      "caption": "The front of a dressing bottle is marketing. The back is the decision. Comment LABEL and I'll send the 3 things I check before a dressing goes in my cart.",
+      "hook": "You skipped dessert, then poured added sugar over your salad. That healthy dressing may be the most misleading bottle in this aisle.",
+      "segments": [
+        "The front says garden, light, and avocado. The ingredient list tells you what you are actually buying.",
+        "First I check the oil, then added sugar, then how long the ingredient list gets.",
+        "My quick swap is olive oil, vinegar, lemon, mustard, garlic, and herbs.",
+        "Shake it in a jar and pour it over greens. Simple ingredients, real flavor, no health halo required."
+      ]
+    },
+    {
+      "id": "flavored_oatmeal_sugar",
+      "hook_overlay": "YOUR HEALTHY OATMEAL MAY BE DESSERT IN A PAPER PACKET.",
+      "caption": "Oats are not the problem. The flavored packet can be. Comment LABEL for my 3-step supermarket label check.",
+      "hook": "Your healthy oatmeal may be dessert in a paper packet. The oats are not the problem. Flip the packet.",
+      "segments": [
+        "Flavored packets can hide added sugar behind fruit names and cozy breakfast language.",
+        "Compare added sugar and serving size before the front of the box makes the decision for you.",
+        "Choose plain oats, then add berries, cinnamon, and a spoon of nut butter yourself.",
+        "You keep the warm breakfast and control how sweet it becomes instead of outsourcing that choice."
+      ]
+    },
+    {
+      "id": "granola_protein_halo",
+      "hook_overlay": "THAT PROTEIN GRANOLA MAY BE A COOKIE WITH BETTER MARKETING.",
+      "caption": "A protein claim does not cancel the rest of the label. Comment LABEL for the supermarket checklist.",
+      "hook": "That protein granola may be a cookie with better marketing. One word on the front does not cancel the ingredient list.",
+      "segments": [
+        "Some bags lead with protein while added sugars and tiny serving sizes stay in the fine print.",
+        "Compare protein, added sugar, and the serving you actually pour, not the serving in the ad.",
+        "Try plain yogurt, nuts, seeds, and a smaller sprinkle of granola for crunch.",
+        "Now the granola is a topping instead of the whole meal, and the bowl is still satisfying."
+      ]
+    },
+    {
+      "id": "yogurt_added_sugar",
+      "hook_overlay": "SOME YOGURTS HAVE MORE SUGAR THAN THE DESSERT YOU AVOIDED.",
+      "caption": "Yogurt can be useful, but the flavoring changes the equation. Comment LABEL for my label checklist.",
+      "hook": "Some yogurts have more sugar than the dessert you avoided. Healthy packaging does not guarantee a low-sugar cup.",
+      "segments": [
+        "Fruit pictures can mean fruit flavor, fruit puree, and added sugar all in the same small cup.",
+        "Read added sugar separately from total sugar, because dairy naturally contains lactose.",
+        "Start with plain yogurt and add real berries, cinnamon, or a little honey to taste.",
+        "You choose the sweetness, keep the protein, and stop letting the package set the dose."
+      ]
+    },
+    {
+      "id": "juice_fiber_swap",
+      "hook_overlay": "YOUR GREEN JUICE LOST THE PART THAT MAKES FRUIT SLOW DOWN.",
+      "caption": "Juice and whole fruit are not nutritionally identical. Comment LABEL for the 3 checks I use in the aisle.",
+      "hook": "Your green juice lost the part that makes fruit slow down. The bottle can look virtuous while the fiber is mostly gone.",
+      "segments": [
+        "Juicing can concentrate several pieces of fruit into something you drink in a few minutes.",
+        "Check the serving size, total sugar, and whether the bottle contains meaningful fiber.",
+        "For an everyday option, pair water with whole fruit or blend fruit without straining it.",
+        "You still get the flavor, but chewing and fiber make it a very different experience."
+      ]
+    },
+    {
+      "id": "pasta_sauce_label",
+      "hook_overlay": "YOUR TOMATO SAUCE MAY BE HIDING SUGAR YOU NEVER ASKED FOR.",
+      "caption": "Tomatoes are naturally sweet. Added sugar is a separate choice. Comment LABEL for my aisle checklist.",
+      "hook": "Your tomato sauce may be hiding sugar you never asked for. The front shows tomatoes. The back tells the full story.",
+      "segments": [
+        "Two jars that look almost identical can have very different added sugar and sodium numbers.",
+        "Compare labels side by side and choose the shorter list that still fits your budget and taste.",
+        "Or start with crushed tomatoes, garlic, olive oil, herbs, and a pinch of salt.",
+        "Simmer it while the pasta cooks. The simplest jar swap can be the easiest one to repeat."
+      ]
+    },
+    {
+      "id": "nut_butter_sugar",
+      "hook_overlay": "YOUR NUT BUTTER SHOULD NOT NEED A DESSERT RECIPE.",
+      "caption": "The simplest nut butter label is usually very short. Comment LABEL for my supermarket checklist.",
+      "hook": "Your nut butter should not need a dessert recipe. If the front says natural, turn it around before it reaches your cart.",
+      "segments": [
+        "Some jars add sugar and extra oils even though nuts already bring flavor and fat.",
+        "Look for nuts and maybe salt, then compare price per ounce instead of trusting the lid.",
+        "Spread it on apple slices or toast and add cinnamon if you want more flavor.",
+        "The swap is almost invisible on your plate, but the ingredient list becomes much simpler."
+      ]
+    }
+  ]
+}

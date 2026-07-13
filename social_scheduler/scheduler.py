@@ -174,7 +174,11 @@ def publish_record(
                     share_to_feed=True,
                 )
             elif platform == "facebook":
-                attempt["platforms"]["facebook"] = client.publish_facebook_reel(video_path=video_path, caption=caption)
+                attempt["platforms"]["facebook"] = client.publish_facebook_reel(
+                    video_path=video_path,
+                    caption=caption,
+                    video_url=str(record.get("public_video_url") or ""),
+                )
             successful_platforms.append(platform)
         except (MetaGraphError, SchedulerError) as exc:
             failed_platforms.append(platform)

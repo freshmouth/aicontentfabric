@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "release": "v1",
+  "timezone": "America/Mexico_City",
+  "project_id": "ai-content-factory-501821",
+  "bucket": "ai-content-factory-501821-omni-outputs",
+  "output_prefix": "daily-factory",
+  "reference_image": "characters/claire_natural/master_reference.png",
+  "omni_model": "gemini-omni-flash-preview",
+  "omni_location": "global",
+  "meta_config": "social_scheduler/config.meta.github.json",
+  "platforms": ["instagram", "facebook"],
+  "publish": true
+}
