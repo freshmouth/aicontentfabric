@@ -3,10 +3,53 @@
   "cta_keyword": "LABEL",
   "concepts": [
     {
+      "id": "oatmeal_sovereign_label_scan",
+      "cta_keyword": "LABEL",
+      "hook_overlay": "THEY LIED TO YOU ABOUT BREAKFAST",
+      "caption": "The front of the packet is designed to win your trust. The back tells you what you are actually buying. Comment LABEL and I will send the 3-second label scan before your next grocery run.",
+      "hook": "That heart-healthy oatmeal packet? It is not breakfast. It is dessert with a wellness costume.",
+      "hook_visual": "Single continuous supermarket breakfast aisle selfie. Claire holds one real Quaker Instant Oatmeal Maple & Brown Sugar packet close to the camera, then flips it toward the nutrition panel. The packet is the only product in her hand. No unrelated fruit, no fruit bowl, no salad, no dressing bottle.",
+      "segments": [
+        {
+          "id": "front_trust_trick",
+          "duration_seconds": 6,
+          "visual": "Single continuous aisle close shot. Claire shows the colorful front of one real oatmeal packet or box for one second, then starts turning it over. The package looks like a real mainstream supermarket oatmeal product, never creator-branded.",
+          "dialogue": "They use maple. They use cinnamon. They put hearts on the box so you trust the front."
+        },
+        {
+          "id": "flip_added_sugar",
+          "duration_seconds": 6,
+          "reference_images": [],
+          "visual": "Single continuous product-only grocery-counter shot. One real Quaker Instant Oatmeal Maple & Brown Sugar packet lies flat on the counter with the nutrition panel visible. One normal hand points near the nutrition facts area. No face visible, no selfie framing, only the oatmeal packet and one hand in frame.",
+          "dialogue": "Flip it. Added sugar is the part they hope you are too busy to question."
+        },
+        {
+          "id": "identity_absolution",
+          "duration_seconds": 6,
+          "visual": "Single continuous kitchen counter shot. Claire sets the oatmeal packet down, looks back to camera, and gestures once with an empathetic but firm expression.",
+          "dialogue": "You were not being stupid. You were being trusting. They turned that trust into profit."
+        },
+        {
+          "id": "plain_oats_control",
+          "duration_seconds": 6,
+          "visual": "Single continuous lived-in kitchen medium shot. Claire places one real plain oats container or bag beside a bowl. Use a familiar supermarket rolled oats product such as Quaker Old Fashioned Oats or Bob's Red Mill rolled oats. No creator branding on the package.",
+          "dialogue": "People who control breakfast use plain oats, then add what they decide."
+        },
+        {
+          "id": "better_bowl_payoff",
+          "duration_seconds": 6,
+          "visual": "Single continuous close food-prep shot. A normal spoon adds berries, cinnamon, and a small spoonful of nut butter to a bowl of plain oats. The spoon stays above the bowl and never appears buried inside a jar.",
+          "dialogue": "Berries, cinnamon, and nut butter beat the packet without handing sweetness to marketing."
+        }
+      ],
+      "cta": "I call it the 3-second Label Scan. Comment LABEL and I will send it before your next grocery run.",
+      "cta_visual": "Single continuous kitchen selfie shot. Claire holds the finished oatmeal bowl in one hand and points down once with the other. No generated text card, no fake app UI, no extra CTA words in the video."
+    },
+    {
       "id": "salad_dressing_label_trap",
       "hook_overlay": "YOU SKIPPED DESSERT. THEN POURED IT ON YOUR SALAD.",
       "caption": "The front of a dressing bottle is marketing. The back is the decision. Comment LABEL and I'll send the 3 things I check before a dressing goes in my cart.",
-      "hook": "You skipped dessert, then poured added sugar over your salad. That healthy dressing may be the most misleading bottle in this aisle.",
+      "hook": "You skipped dessert, then poured added sugar over your salad. That healthy dressing is the most misleading bottle in this aisle.",
       "segments": [
         "The front says garden, light, and avocado. The ingredient list tells you what you are actually buying.",
         "First I check the oil, then added sugar, then how long the ingredient list gets.",
@@ -16,9 +59,9 @@
     },
     {
       "id": "flavored_oatmeal_sugar",
-      "hook_overlay": "YOUR HEALTHY OATMEAL MAY BE DESSERT IN A PAPER PACKET.",
+      "hook_overlay": "YOUR HEALTHY OATMEAL IS DESSERT IN A PAPER PACKET.",
       "caption": "Oats are not the problem. The flavored packet can be. Comment LABEL for my 3-step supermarket label check.",
-      "hook": "Your healthy oatmeal may be dessert in a paper packet. The oats are not the problem. Flip the packet.",
+      "hook": "Your healthy oatmeal is dessert in a paper packet. The oats are not the problem. Flip the packet.",
       "segments": [
         "Flavored packets can hide added sugar behind fruit names and cozy breakfast language.",
         "Compare added sugar and serving size before the front of the box makes the decision for you.",
@@ -28,9 +71,9 @@
     },
     {
       "id": "granola_protein_halo",
-      "hook_overlay": "THAT PROTEIN GRANOLA MAY BE A COOKIE WITH BETTER MARKETING.",
+      "hook_overlay": "THAT PROTEIN GRANOLA IS A COOKIE WITH BETTER MARKETING.",
       "caption": "A protein claim does not cancel the rest of the label. Comment LABEL for the supermarket checklist.",
-      "hook": "That protein granola may be a cookie with better marketing. One word on the front does not cancel the ingredient list.",
+      "hook": "That protein granola is a cookie with better marketing. One word on the front does not cancel the ingredient list.",
       "segments": [
         "Some bags lead with protein while added sugars and tiny serving sizes stay in the fine print.",
         "Compare protein, added sugar, and the serving you actually pour, not the serving in the ad.",
@@ -64,9 +107,9 @@
     },
     {
       "id": "pasta_sauce_label",
-      "hook_overlay": "YOUR TOMATO SAUCE MAY BE HIDING SUGAR YOU NEVER ASKED FOR.",
+      "hook_overlay": "YOUR TOMATO SAUCE IS HIDING SUGAR YOU NEVER ASKED FOR.",
       "caption": "Tomatoes are naturally sweet. Added sugar is a separate choice. Comment LABEL for my aisle checklist.",
-      "hook": "Your tomato sauce may be hiding sugar you never asked for. The front shows tomatoes. The back tells the full story.",
+      "hook": "Your tomato sauce is hiding sugar you never asked for. The front shows tomatoes. The back tells the full story.",
       "segments": [
         "Two jars that look almost identical can have very different added sugar and sodium numbers.",
         "Compare labels side by side and choose the shorter list that still fits your budget and taste.",

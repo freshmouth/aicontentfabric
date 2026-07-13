@@ -19,10 +19,11 @@ from postprocess import postprocess_video
 PIPELINE_DIR = Path(__file__).resolve().parent
 WORKSPACE_ROOT = PIPELINE_DIR.parent
 PRODUCT_BRANDING_RULE = (
-    "Product authenticity rule: Claire Natural is the on-camera person only, never a product brand, "
-    "label, ebook cover, package name, receipt title, sticker, or CTA asset. Do not put the text "
-    "'Claire Natural' on any supermarket product or package. Use real supermarket products and "
-    "ordinary retail packaging cues for food scenes, not creator-branded wellness products."
+    "Product authenticity rule: the on-camera person is never a product brand, "
+    "label, ebook cover, package name, receipt title, sticker, or CTA asset. Do not put the creator name "
+    "on any supermarket product or package. Use real supermarket products and "
+    "ordinary retail packaging cues for food scenes, not creator-branded wellness products. Do not render "
+    "prompt-control wording on packaging; instructions are not package labels."
 )
 
 
@@ -457,6 +458,8 @@ def component_duration(config: dict[str, Any], component: dict[str, Any]) -> int
 
 
 def inherited_references(component: dict[str, Any], segment: dict[str, Any], field: str) -> list[str]:
+    if field in segment:
+        return normalize_reference_list(segment.get(field))
     segment_refs = normalize_reference_list(segment.get(field))
     if segment_refs:
         return segment_refs

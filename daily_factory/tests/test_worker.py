@@ -19,6 +19,18 @@ class DailyWorkerTests(unittest.TestCase):
     def test_selection_is_deterministic(self):
         self.assertEqual(select_concept(self.queue, "2026-07-12"), select_concept(self.queue, "2026-07-12"))
 
+    def test_can_select_structured_oatmeal_concept(self):
+        concept = select_concept(self.queue, "2026-07-13", "oatmeal_sovereign_label_scan")
+        self.assertEqual(concept["cta_keyword"], "LABEL")
+        with tempfile.TemporaryDirectory() as directory:
+            generated = build_omni_config(self.config, concept, "2026-07-13", Path(directory))
+        self.assertEqual(len(generated["meals"][0]["segments"]), 5)
+        self.assertEqual(generated["ctas"][0]["title"], "Comment LABEL")
+        prompt_blob = json.dumps(generated)
+        self.assertNotIn("brand-free", prompt_blob)
+        self.assertNotIn("brand free", prompt_blob.lower())
+        self.assertNotIn("Claire oats", prompt_blob)
+
     def test_generated_config_is_one_complete_variant(self):
         concept = select_concept(self.queue, "2026-07-12")
         with tempfile.TemporaryDirectory() as directory:

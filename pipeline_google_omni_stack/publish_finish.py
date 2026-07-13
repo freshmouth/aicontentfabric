@@ -29,6 +29,7 @@ def main(argv: list[str] | None = None) -> int:
             silence_duration=float(args.silence_duration),
             keep_start=float(args.keep_start),
             keep_end=float(args.keep_end),
+            caption_delay=float(args.caption_delay),
         )
     except Exception as exc:
         print(f"Publish finish failed: {exc}", file=sys.stderr)
@@ -51,6 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--silence-duration", default="0.35")
     parser.add_argument("--keep-start", default="0.06")
     parser.add_argument("--keep-end", default="0.08")
+    parser.add_argument("--caption-delay", default="0.16", help="Seconds to delay regular subtitles after silence removal.")
     return parser
 
 
@@ -64,6 +66,7 @@ def finish_for_publish(
     silence_duration: float,
     keep_start: float,
     keep_end: float,
+    caption_delay: float,
 ) -> dict[str, Any]:
     if not input_video.exists() or input_video.stat().st_size <= 0:
         raise PublishFinishError(f"Missing input video: {input_video}")
@@ -81,25 +84,25 @@ def finish_for_publish(
 
     config = read_json(config_path)
     source_timeline = source_scene_timeline(config, input_video.parent / "variant.json")
-    captions = build_captions(source_timeline, keep_intervals, trimmed_duration)
+    captions = build_captions(source_timeline, keep_intervals, trimmed_duration, caption_delay=caption_delay)
     hook_settings = {
         "enabled": True,
         "text": hook_text,
         "start": 0.0,
-        "duration": 3.25,
-        "font_size": 58,
-        "max_chars_per_line": 21,
+        "duration": 3.35,
+        "font_size": 46,
+        "max_chars_per_line": 23,
         "max_lines": 3,
-        "top": 64,
-        "box_padding_x": 22,
-        "box_padding_y": 10,
-        "box_radius": 14,
+        "top": 66,
+        "box_padding_x": 12,
+        "box_padding_y": 7,
+        "box_radius": 10,
         "line_gap": 0,
-        "line_height": 78,
+        "line_height": 58,
         "fill_line_break_gaps": True,
-        "box_seam_overlap": 10,
-        "side_margin": 20,
-        "char_width_factor": 0.43,
+        "box_seam_overlap": 8,
+        "side_margin": 18,
+        "char_width_factor": 0.54,
         "suppress_regular_captions": True,
     }
     captions = suppress_captions_for_hook_overlay(captions, hook_settings)
@@ -118,6 +121,7 @@ def finish_for_publish(
         "removed_seconds": round(duration - trimmed_duration, 3),
         "silence_noise": silence_noise,
         "silence_duration": silence_duration,
+        "caption_delay": caption_delay,
         "raw_silences": raw_silences,
         "cut_silences": cut_silences,
         "keep_intervals": keep_intervals,
@@ -281,14 +285,20 @@ def extract_native_dialogue(prompt: str) -> str:
     return text.strip().strip('"')
 
 
-def build_captions(scene_timeline: list[dict[str, Any]], keep_intervals: list[dict[str, float]], final_duration: float) -> list[dict[str, Any]]:
+def build_captions(
+    scene_timeline: list[dict[str, Any]],
+    keep_intervals: list[dict[str, float]],
+    final_duration: float,
+    *,
+    caption_delay: float = 0.0,
+) -> list[dict[str, Any]]:
     captions: list[dict[str, Any]] = []
     for scene in scene_timeline:
         scene_start = map_time(float(scene["start"]), keep_intervals)
         scene_end = map_time(float(scene["end"]), keep_intervals)
         scene_start = max(0.0, min(final_duration, scene_start))
         scene_end = max(scene_start + 0.2, min(final_duration, scene_end))
-        chunks = split_caption_text(str(scene["text"]), max_words=4)
+        chunks = split_caption_text(str(scene["text"]), max_words=3)
         if not chunks:
             continue
         weights = [max(1, len(chunk.split())) for chunk in chunks]
@@ -300,8 +310,9 @@ def build_captions(scene_timeline: list[dict[str, Any]], keep_intervals: list[di
                 end = scene_end
             else:
                 end = cursor + available * (weight / total)
-            if end - cursor >= 0.18:
-                captions.append({"start": round(cursor + 0.04, 3), "end": round(end, 3), "text": chunk})
+            caption_start = min(max(0.0, cursor + caption_delay), max(0.0, end - 0.12))
+            if end - caption_start >= 0.18:
+                captions.append({"start": round(caption_start, 3), "end": round(end, 3), "text": chunk})
             cursor = end
     return captions
 
@@ -351,13 +362,13 @@ def write_ass_subtitles(captions: list[dict[str, Any]], output_path: Path, *, wi
         "",
         "[V4+ Styles]",
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-        "Style: Default,Arial,54,&H00FFFFFF,&H000000FF,&HAA000000,&HAA000000,-1,0,0,0,100,100,0,0,1,5,1,2,70,70,130,1",
+        "Style: Default,DejaVu Sans,40,&H00FFFFFF,&H000000FF,&HCC000000,&HAA000000,-1,0,0,0,100,100,0,0,1,4,0,2,86,86,146,1",
         "",
         "[Events]",
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
     for caption in captions:
-        text = escape_ass_text(str(caption["text"]).upper())
+        text = escape_ass_text(str(caption["text"]))
         lines.append(
             f"Dialogue: 2,{ass_timestamp(float(caption['start']))},{ass_timestamp(float(caption['end']))},Default,,0,0,0,,{text}"
         )
@@ -377,7 +388,7 @@ def add_hook_caption_to_ass(subtitles_path: Path, settings: dict[str, Any], widt
     style_name = "HookCaption"
     font_size = int(settings.get("font_size", 74))
     style_line = (
-        f"Style: {style_name},Arial,{font_size},&H00000000,&H000000FF,&H00000000,&H00000000,"
+        f"Style: {style_name},DejaVu Sans,{font_size},&H00000000,&H000000FF,&H00000000,&H00000000,"
         "-1,0,0,0,100,100,0,0,1,0,0,5,60,60,80,1"
     )
     content = content.replace("Style: Default,", style_line + "\nStyle: Default,", 1)
@@ -505,7 +516,7 @@ def run_command(
     cwd: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    result = subprocess.run(command, capture_output=True, text=True, timeout=timeout, check=False, cwd=cwd)
+    result = subprocess.run(command, capture_output=True, text=True, timeout=timeout, check=False, cwd=cwd, stdin=subprocess.DEVNULL)
     log_path.write_text(
         "Running: " + " ".join(command) + "\n\nSTDOUT:\n" + result.stdout + "\nSTDERR:\n" + result.stderr,
         encoding="utf-8",

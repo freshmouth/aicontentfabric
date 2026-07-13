@@ -27,8 +27,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate and publish one daily UGC Reel from the stable Omni stack.")
     parser.add_argument("--config", default=str(ROOT / "daily_factory" / "config.json"))
     parser.add_argument("--date", default="", help="Local YYYY-MM-DD. Defaults to today in configured timezone.")
+    parser.add_argument("--concept-id", default="", help="Generate a specific concept id instead of the scheduled daily concept.")
     parser.add_argument("--dry-run", action="store_true", help="Build config and manifest without generation or publishing.")
     parser.add_argument("--force", action="store_true", help="Ignore an existing successful daily manifest.")
+    parser.add_argument("--no-publish", action="store_true", help="Generate the final video but skip Instagram/Facebook publishing.")
     parser.add_argument("--out", default="", help="Optional working directory; defaults to a temporary directory.")
     args = parser.parse_args(argv)
 
@@ -37,7 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     queue = read_json(ROOT / "daily_factory" / "content_queue.json")
     local_timezone = resolve_timezone(str(config.get("timezone") or "America/Mexico_City"))
     run_date = args.date or datetime.now(local_timezone).date().isoformat()
-    concept = select_concept(queue, run_date)
+    concept = select_concept(queue, run_date, args.concept_id)
     release = str(os.environ.get("DAILY_FACTORY_RELEASE") or config.get("release") or "v1")
     dry_run = args.dry_run or env_bool("DAILY_FACTORY_DRY_RUN", False)
     bucket = str(config["bucket"])
@@ -129,13 +131,16 @@ def main(argv: list[str] | None = None) -> int:
         write_json(work_dir / "manifest.json", manifest)
         upload_gcs_json(bucket, f"{prefix}/manifest.json", manifest, token)
 
-        if bool(config.get("publish", True)):
+        if bool(config.get("publish", True)) and not args.no_publish:
             manifest["platforms"] = publish_platforms(config, final_video, public_url, str(concept["caption"]))
             failed = [name for name, result in manifest["platforms"].items() if result.get("status") == "failed"]
             if failed:
                 raise DailyFactoryError("Publishing failed for: " + ", ".join(failed))
-        manifest["status"] = "published"
-        manifest["published_at"] = utc_now()
+            manifest["status"] = "published"
+            manifest["published_at"] = utc_now()
+        else:
+            manifest["status"] = "generated"
+            manifest["publishing_skipped"] = True
     except Exception as exc:
         manifest["status"] = "failed"
         manifest["error"] = str(exc)
@@ -152,10 +157,15 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def select_concept(queue: dict[str, Any], run_date: str) -> dict[str, Any]:
+def select_concept(queue: dict[str, Any], run_date: str, concept_id: str = "") -> dict[str, Any]:
     concepts = list(queue.get("concepts") or [])
     if not concepts:
         raise DailyFactoryError("The daily content queue is empty.")
+    if concept_id:
+        for concept in concepts:
+            if str(concept.get("id") or "") == concept_id:
+                return dict(concept)
+        raise DailyFactoryError(f"Unknown concept id: {concept_id}")
     ordinal = datetime.strptime(run_date, "%Y-%m-%d").date().toordinal()
     return dict(concepts[ordinal % len(concepts)])
 
@@ -164,19 +174,26 @@ def build_omni_config(config: dict[str, Any], concept: dict[str, Any], run_date:
     reference = str(config.get("reference_image") or "characters/claire_natural/master_reference.png")
     project_id = str(config["project_id"])
     bucket = str(config["bucket"])
+    cta_keyword = str(concept.get("cta_keyword") or "LABEL").strip().upper()
     segments = []
-    scene_prompts = [
-        "Supermarket aisle close shot. Claire compares two ordinary brand-free packages, keeping both physically stable.",
-        "Close over-shoulder label check. The package stays in Claire's hand; label text is not fabricated or readable.",
-        "Lived-in kitchen medium-wide shot. Claire lays out the named whole-food swap ingredients on the counter.",
-        "Close food-preparation shot. Claire completes one realistic action with normal hand and object physics.",
-    ]
-    for index, dialogue in enumerate(concept["segments"], start=1):
-        segments.append({
-            "id": f"main_{index:02d}",
-            "duration_seconds": 8,
-            "prompt": f"{scene_prompts[index - 1]} Native dialogue: {dialogue}",
-        })
+    raw_segments = list(concept.get("segments") or [])
+    if not raw_segments:
+        raise DailyFactoryError(f"Concept {concept.get('id')} has no segments.")
+    for index, raw_segment in enumerate(raw_segments, start=1):
+        segment = normalize_segment(raw_segment, index)
+        generated_segment = {
+            "id": segment["id"],
+            "duration_seconds": segment["duration_seconds"],
+            "prompt": scene_prompt(
+                visual=segment["visual"],
+                dialogue=segment["dialogue"],
+                concept=concept,
+                role=f"main scene {index}",
+            ),
+        }
+        if "reference_images" in segment:
+            generated_segment["reference_images"] = segment["reference_images"]
+        segments.append(generated_segment)
     return {
         "name": f"Daily Claire Reel {run_date}",
         "concept_id": concept["id"],
@@ -197,38 +214,122 @@ def build_omni_config(config: dict[str, Any], concept: dict[str, Any], run_date:
         "hooks": [{
             "id": "daily_hook",
             "title": concept["id"],
-            "duration_seconds": 8,
+            "duration_seconds": int(concept.get("hook_duration_seconds") or 6),
             "reference_images": [reference],
-            "prompt": "Single continuous supermarket selfie shot. Claire holds one relevant ordinary supermarket item close to camera, then lowers it slightly while maintaining direct eye contact. Native dialogue: " + concept["hook"],
+            "prompt": scene_prompt(
+                visual=str(
+                    concept.get("hook_visual")
+                    or "Single continuous supermarket selfie shot. Claire holds only the named supermarket product for this concept close to the camera, then lowers it slightly while maintaining direct eye contact."
+                ),
+                dialogue=str(concept["hook"]),
+                concept=concept,
+                role="hook",
+            ),
         }],
         "meals": [{
             "id": "daily_main",
             "title": concept["id"],
             "reference_images": [reference],
-            "prompt": "This component is generated as independent leaf scenes. The current request is only one leaf scene with one location and one physical action.",
+            "prompt": "Each segment is generated as its own independent leaf scene. One location, one physical action, one exact spoken line per segment.",
             "segments": segments,
         }],
         "ctas": [{
             "id": "daily_cta",
-            "title": "Comment LABEL",
-            "duration_seconds": 8,
+            "title": f"Comment {cta_keyword}",
+            "duration_seconds": int(concept.get("cta_duration_seconds") or 6),
             "reference_images": [reference],
-            "prompt": "Single continuous kitchen selfie shot. Claire points down once with direct eye contact. No card and no generated text. Native dialogue: Comment LABEL and I'll send you the three things I check before a product goes in my cart.",
+            "prompt": scene_prompt(
+                visual=str(
+                    concept.get("cta_visual")
+                    or "Single continuous kitchen selfie shot. Claire points down once with direct eye contact. No card and no generated text."
+                ),
+                dialogue=str(
+                    concept.get("cta")
+                    or f"Comment {cta_keyword} and I'll send you the three things I check before a product goes in my cart."
+                ),
+                concept=concept,
+                role="CTA",
+            ),
         }],
-        "variants": {"count": 1, "min_total_seconds": 44, "max_total_seconds": 55, "seed": int(run_date.replace("-", "")), "stitch_leaf_segments": True},
+        "variants": variant_settings(concept, run_date, segments),
     }
 
 
 def master_prompt() -> str:
     return (
         "GOOGLE OMNI MASTER PROMPT. Create ONE vertical 9:16 realistic UGC smartphone clip with native spoken audio. "
-        "This is one leaf scene, never a montage or multi-scene story. Use the supplied Claire reference as the fixed identity anchor. "
-        "Preserve her face, age, eyes, skin texture, hair, and ordinary appearance. Casual gray top. One continuous handheld iPhone-style shot. "
-        "Use only the named environment and objects. Objects remain solid, correctly gripped, and physically realistic. "
+        "This is one leaf scene, never a montage or multi-scene story. Never combine multiple scenes inside one generated clip. "
+        "When a Claire reference image is supplied, use it as the fixed identity anchor and preserve her face, age, eyes, skin texture, hair, and ordinary appearance. "
+        "For product-only B-roll without a reference image, do not show a face. Casual gray top when Claire is visible. One continuous handheld iPhone-style shot. "
+        "Use only the named environment and objects for this exact scene. Do not carry objects from earlier scenes into later scenes unless named again. "
+        "Objects remain solid, correctly gripped, and physically realistic. "
         "Natural restrained movement, direct eye contact while speaking, no floating, sliding, morphing, duplicate products, jump cuts, location changes, "
-        "cinematic movement, beauty filter, text, subtitles, logos, social UI, or extra dialogue. Claire is a person, never a product brand. "
-        "Use ordinary supermarket products without inventing readable package claims. Say only the exact Native dialogue once."
+        "cinematic movement, beauty filter, text, subtitles, logos, social UI, or extra dialogue. Start speaking immediately and finish the full line. "
+        "No unfinished sentence, no repeated words, no repeated opening phrase, and no trailing self-interruption. Claire is a person, never a product brand. "
+        "Use real supermarket product cues and named real supermarket products when provided. Never invent creator-branded products. "
+        "Do not render prompt-control wording or the creator name on packaging. Say only the exact Native dialogue once."
     )
+
+
+def normalize_segment(raw_segment: Any, index: int) -> dict[str, Any]:
+    fallback_visuals = [
+        "Single continuous supermarket aisle close shot. Claire holds only the named product for this concept and keeps it physically stable.",
+        "Single continuous over-shoulder label check. Claire points near the label while the product stays in her hand.",
+        "Single continuous lived-in kitchen counter shot. Claire lays out only the named whole-food swap ingredients.",
+        "Single continuous close food-preparation shot. Claire completes one realistic action with normal hand and object physics.",
+    ]
+    if isinstance(raw_segment, dict):
+        dialogue = str(raw_segment.get("dialogue") or raw_segment.get("text") or "").strip()
+        visual = str(raw_segment.get("visual") or raw_segment.get("prompt") or fallback_visuals[(index - 1) % len(fallback_visuals)]).strip()
+        sid = str(raw_segment.get("id") or f"main_{index:02d}").strip()
+        duration = int(raw_segment.get("duration_seconds") or 8)
+        references = raw_segment.get("reference_images") if "reference_images" in raw_segment else None
+    else:
+        dialogue = str(raw_segment).strip()
+        visual = fallback_visuals[(index - 1) % len(fallback_visuals)]
+        sid = f"main_{index:02d}"
+        duration = 8
+        references = None
+    if not dialogue:
+        raise DailyFactoryError(f"Segment {index} has no dialogue.")
+    if not dialogue.endswith((".", "!", "?")):
+        dialogue += "."
+    normalized = {"id": sid, "visual": visual, "dialogue": dialogue, "duration_seconds": duration}
+    if references is not None:
+        if not isinstance(references, list):
+            raise DailyFactoryError(f"Segment {index} reference_images must be a list.")
+        normalized["reference_images"] = [str(item) for item in references]
+    return normalized
+
+
+def scene_prompt(*, visual: str, dialogue: str, concept: dict[str, Any], role: str) -> str:
+    forbidden = str(
+        concept.get("forbidden_objects")
+        or "unrelated fruit, juice bottles, salad dressing, salad greens, ebook covers, creator-branded products, fake wellness jars, extra CTA cards"
+    )
+    return (
+        f"{visual.strip()}\n"
+        f"Scene role: {role}. This is one complete leaf clip only.\n"
+        f"Object lock: use only the objects named in this scene. Forbidden unless explicitly named in this scene: {forbidden}.\n"
+        "Product lock: products must look like real supermarket items from actual stores. If a known brand is named, use that brand cue naturally; "
+        "do not replace it with a made-up Claire brand, do not print prompt-control wording on the package, and do not invent fake readable claims.\n"
+        "Physics lock: no floating, sliding, warping, duplicate packages, extra fingers, hands passing through objects, or utensils buried inside jars.\n"
+        "Continuity lock: the spoken line starts cleanly, ends as a complete sentence, and is not repeated.\n"
+        f"Native dialogue: {dialogue.strip()}"
+    )
+
+
+def variant_settings(concept: dict[str, Any], run_date: str, segments: list[dict[str, Any]]) -> dict[str, Any]:
+    hook_seconds = int(concept.get("hook_duration_seconds") or 6)
+    cta_seconds = int(concept.get("cta_duration_seconds") or 6)
+    total = hook_seconds + cta_seconds + sum(int(segment["duration_seconds"]) for segment in segments)
+    return {
+        "count": 1,
+        "min_total_seconds": max(20, total - 8),
+        "max_total_seconds": total + 10,
+        "seed": int(run_date.replace("-", "")),
+        "stitch_leaf_segments": True,
+    }
 
 
 def publish_platforms(config: dict[str, Any], video: Path, public_url: str, caption: str) -> dict[str, Any]:
