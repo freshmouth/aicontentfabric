@@ -15,7 +15,13 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from .characters import CharacterProfile, character_text, load_character
+from .characters import (
+    CharacterProfile,
+    character_text,
+    load_character,
+    require_generation_ready,
+    require_publishing_ready,
+)
 from .first_frames import prepare_omni_v11_first_frames
 
 
@@ -44,6 +50,8 @@ def main(argv: list[str] | None = None) -> int:
     local_timezone = resolve_timezone(str(config.get("timezone") or "America/Mexico_City"))
     run_date = args.date or datetime.now(local_timezone).date().isoformat()
     concept = select_concept(queue, run_date, args.concept_id)
+    character = load_character(ROOT, config, concept)
+    require_generation_ready(character)
     release = str(os.environ.get("DAILY_FACTORY_RELEASE") or config.get("release") or "v1")
     dry_run = args.dry_run or env_bool("DAILY_FACTORY_DRY_RUN", False)
     bucket = str(config["bucket"])
@@ -57,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
 
     work_dir = Path(args.out).resolve() if args.out else Path(tempfile.mkdtemp(prefix=f"daily-factory-{run_date}-"))
     work_dir.mkdir(parents=True, exist_ok=True)
-    generated_config = build_omni_config(config, concept, run_date, work_dir)
+    generated_config = build_omni_config(config, concept, run_date, work_dir, character=character)
     if use_omni_v11(config) and not dry_run:
         generated_config = prepare_omni_v11_first_frames(generated_config, config, work_dir=work_dir, root=ROOT)
     elif use_omni_v11(config):
@@ -73,6 +81,7 @@ def main(argv: list[str] | None = None) -> int:
         "release": release,
         "date": run_date,
         "concept_id": concept["id"],
+        "character_id": character.character_id,
         "status": "dry_run" if dry_run else "generating",
         "created_at": utc_now(),
         "work_dir": str(work_dir),
@@ -83,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
         if os.environ.get("CLOUD_RUN_JOB"):
             cloud_token = google_access_token()
             read_gcs_json(bucket, f"{prefix}/dry-run-credential-probe.json", cloud_token)
-            required_secrets = ["INSTAGRAM_ACCESS_TOKEN", "FACEBOOK_PAGE_ACCESS_TOKEN"]
+            required_secrets = publishing_secret_envs(character) if bool(config.get("publish", True)) else []
             if use_omni_v11(config):
                 required_secrets.append(str(config.get("openai_api_key_env") or "OPENAI_API_KEY"))
             for secret_name in required_secrets:
@@ -147,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
         upload_gcs_json(bucket, f"{prefix}/manifest.json", manifest, token)
 
         if bool(config.get("publish", True)) and not args.no_publish:
-            manifest["platforms"] = publish_platforms(config, final_video, public_url, str(concept["caption"]))
+            manifest["platforms"] = publish_platforms(config, character, final_video, public_url, str(concept["caption"]))
             failed = [name for name, result in manifest["platforms"].items() if result.get("status") == "failed"]
             if failed:
                 raise DailyFactoryError("Publishing failed for: " + ", ".join(failed))
@@ -185,8 +194,16 @@ def select_concept(queue: dict[str, Any], run_date: str, concept_id: str = "") -
     return dict(concepts[ordinal % len(concepts)])
 
 
-def build_omni_config(config: dict[str, Any], concept: dict[str, Any], run_date: str, work_dir: Path) -> dict[str, Any]:
-    character = load_character(ROOT, config, concept)
+def build_omni_config(
+    config: dict[str, Any],
+    concept: dict[str, Any],
+    run_date: str,
+    work_dir: Path,
+    *,
+    character: CharacterProfile | None = None,
+) -> dict[str, Any]:
+    character = character or load_character(ROOT, config, concept)
+    require_generation_ready(character)
     reference = character.master_reference
     project_id = str(config["project_id"])
     bucket = str(config["bucket"])
@@ -377,10 +394,17 @@ def use_omni_v11(config: dict[str, Any]) -> bool:
     return env_bool("DAILY_FACTORY_OMNI_V11", False)
 
 
-def publish_platforms(config: dict[str, Any], video: Path, public_url: str, caption: str) -> dict[str, Any]:
+def publish_platforms(
+    config: dict[str, Any],
+    character: CharacterProfile,
+    video: Path,
+    public_url: str,
+    caption: str,
+) -> dict[str, Any]:
     from social_scheduler.meta_graph import MetaGraphClient, load_config
 
-    meta_raw = read_json(ROOT / str(config.get("meta_config") or "social_scheduler/config.meta.local.json"))
+    require_publishing_ready(character)
+    meta_raw = read_json(ROOT / character.meta_config)
     client = MetaGraphClient(load_config(meta_raw))
     results: dict[str, Any] = {}
     for platform in config.get("platforms") or ["instagram", "facebook"]:
@@ -395,6 +419,16 @@ def publish_platforms(config: dict[str, Any], video: Path, public_url: str, capt
         except Exception as exc:
             results[platform] = {"status": "failed", "error": str(exc)}
     return results
+
+
+def publishing_secret_envs(character: CharacterProfile) -> list[str]:
+    require_publishing_ready(character)
+    meta_raw = read_json(ROOT / character.meta_config)
+    meta = dict(meta_raw.get("meta") or meta_raw)
+    return [
+        str(meta.get("instagram_access_token_env") or "INSTAGRAM_ACCESS_TOKEN").strip(),
+        str(meta.get("facebook_access_token_env") or "FACEBOOK_PAGE_ACCESS_TOKEN").strip(),
+    ]
 
 
 def google_access_token() -> str:

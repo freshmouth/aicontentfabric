@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from daily_factory.characters import CharacterError, load_character, require_publishing_ready
 from daily_factory.worker import build_omni_config, select_concept
 
 
@@ -41,17 +42,26 @@ class DailyWorkerTests(unittest.TestCase):
         self.assertEqual(generated["variants"]["count"], 1)
         self.assertIn("master_reference.png", generated["hooks"][0]["reference_images"][0])
 
-    def test_sarah_cole_uses_independent_character_reference(self):
+    def test_sarah_cole_is_draft_and_cannot_generate(self):
         concept = select_concept(self.queue, "2026-07-13", "oatmeal_sovereign_label_scan")
         concept["character_id"] = "sarah_cole"
         with tempfile.TemporaryDirectory() as directory:
-            generated = build_omni_config(self.config, concept, "2026-07-13", Path(directory))
-        prompt_blob = json.dumps(generated)
-        self.assertEqual(generated["character"]["character_id"], "sarah_cole")
-        self.assertEqual(generated["hooks"][0]["reference_images"], ["characters/sarah_cole/master_reference.png"])
-        self.assertIn("Sarah Cole", prompt_blob)
-        self.assertNotIn("characters/claire_natural/master_reference.png", prompt_blob)
-        self.assertNotIn("Claire holds", prompt_blob)
+            with self.assertRaisesRegex(CharacterError, "draft-only"):
+                build_omni_config(self.config, concept, "2026-07-13", Path(directory))
+
+    def test_sarah_cole_cannot_inherit_claire_publishing_profile(self):
+        concept = {"character_id": "sarah_cole"}
+        character = load_character(ROOT, self.config, concept)
+        with self.assertRaisesRegex(CharacterError, "no dedicated publishing profile"):
+            require_publishing_ready(character)
+
+    def test_claire_remains_active_with_her_own_publishing_profile(self):
+        character = load_character(ROOT, self.config, {"character_id": "claire_natural"})
+        self.assertEqual(character.status, "active")
+        self.assertTrue(character.identity_ready)
+        self.assertTrue(character.content_ready)
+        self.assertTrue(character.publishing_ready)
+        self.assertEqual(character.meta_config, "social_scheduler/config.meta.github.json")
 
 
 if __name__ == "__main__":

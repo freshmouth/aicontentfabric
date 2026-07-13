@@ -26,6 +26,11 @@ class CharacterProfile:
     environment: str = ""
     voice: str = ""
     identity_bible: str = ""
+    status: str = "draft"
+    identity_ready: bool = False
+    content_ready: bool = False
+    publishing_ready: bool = False
+    meta_config: str = ""
 
     def prompt_identity(self) -> str:
         parts = [
@@ -90,7 +95,36 @@ def load_character(root: Path, config: dict[str, Any], concept: dict[str, Any]) 
         environment=str(merged.get("environment") or "").strip(),
         voice=str(merged.get("voice") or "").strip(),
         identity_bible=str(merged.get("identity_bible") or "").strip(),
+        status=str(merged.get("status") or "draft").strip().lower(),
+        identity_ready=as_bool(merged.get("identity_ready"), False),
+        content_ready=as_bool(merged.get("content_ready"), False),
+        publishing_ready=as_bool(merged.get("publishing_ready"), False),
+        meta_config=str(merged.get("meta_config") or "").strip(),
     )
+
+
+def require_generation_ready(character: CharacterProfile) -> None:
+    missing = []
+    if character.status != "active":
+        missing.append("status=active")
+    if not character.identity_ready:
+        missing.append("identity_ready=true")
+    if not character.content_ready:
+        missing.append("content_ready=true")
+    if missing:
+        raise CharacterError(
+            f"Character {character.character_id} is draft-only and cannot generate or schedule content. "
+            f"Missing: {', '.join(missing)}."
+        )
+
+
+def require_publishing_ready(character: CharacterProfile) -> None:
+    if not character.publishing_ready or not character.meta_config:
+        raise CharacterError(
+            f"Character {character.character_id} has no dedicated publishing profile. "
+            "Set publishing_ready=true and a character-specific meta_config only after its "
+            "Facebook/Instagram Page credentials are configured."
+        )
 
 
 def character_text(text: str, character: CharacterProfile) -> str:
@@ -109,3 +143,11 @@ def relative_or_absolute(root: Path, path: Path) -> str:
         return str(path.resolve().relative_to(root.resolve())).replace("\\", "/")
     except ValueError:
         return str(path)
+
+
+def as_bool(value: Any, default: bool) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}

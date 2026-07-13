@@ -11,11 +11,21 @@
   "characters": {
     "claire_natural": {
       "metadata_path": "characters/claire_natural/character.json",
-      "master_reference": "characters/claire_natural/master_reference.png"
+      "master_reference": "characters/claire_natural/master_reference.png",
+      "status": "active",
+      "identity_ready": true,
+      "content_ready": true,
+      "publishing_ready": true,
+      "meta_config": "social_scheduler/config.meta.github.json"
     },
     "sarah_cole": {
       "metadata_path": "characters/sarah_cole/character.json",
-      "master_reference": "characters/sarah_cole/master_reference.png"
+      "master_reference": "characters/sarah_cole/master_reference.png",
+      "status": "draft",
+      "identity_ready": false,
+      "content_ready": false,
+      "publishing_ready": false,
+      "meta_config": ""
     }
   },
   "openai_api_key_env": "OPENAI_API_KEY",
@@ -27,7 +37,6 @@
   },
   "omni_model": "gemini-omni-flash-preview",
   "omni_location": "global",
-  "meta_config": "social_scheduler/config.meta.github.json",
   "platforms": ["instagram", "facebook"],
   "publish": true
 }

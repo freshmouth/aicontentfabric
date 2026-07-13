@@ -19,7 +19,13 @@ python -m daily_factory.worker --dry-run --out daily_factory/dry_run
 
 ## Characters
 
-The daily factory now resolves the on-camera person from a character registry. Existing concepts use `claire_natural` by default. To use a different person, set `character_id` on the concept:
+The daily factory resolves the on-camera person from a character registry. Existing concepts use `claire_natural` by default. A new character remains draft-only until all three readiness gates are explicitly enabled:
+
+- `identity_ready`: the complete identity, voice, visual world, and prompt rules are approved.
+- `content_ready`: that character's own daily prompt list is installed.
+- `publishing_ready`: a dedicated `meta_config` points to that character's Facebook/Instagram credential environment variables.
+
+Draft characters fail before paid image or video generation. They cannot inherit Claire's Meta account. After all gates are ready, select the character on its own concept:
 
 ```json
 {
@@ -33,10 +39,10 @@ The daily factory now resolves the on-camera person from a character registry. E
 
 Each character owns its own folder under `characters/<character_id>/` with `character.json` and `master_reference.png`. Character identity, outfit, room, and voice metadata do not carry across characters; only the generation, finishing, scheduling, and publishing automation is shared.
 
-Available characters:
+Character status:
 
-- `claire_natural`: existing default daily factory identity.
-- `sarah_cole`: functional health coach, age 50-54, cream V-neck cashmere sweater, gold coin pendant, warm oak office, School of Medicine certificate, Outlive/Lifespan books, olive tree, calm authority voice at 128 WPM.
+- `claire_natural`: active default identity with its existing publishing profile.
+- `sarah_cole`: draft registration only. No generation, schedule selection, or publishing is allowed until her identity prompts, prompt list, and dedicated Meta credentials are supplied and approved.
 
 ## Cloud resources
 

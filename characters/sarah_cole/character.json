@@ -1,5 +1,10 @@
 {
   "character_id": "sarah_cole",
+  "status": "draft",
+  "identity_ready": false,
+  "content_ready": false,
+  "publishing_ready": false,
+  "meta_config": "",
   "name": "Sarah Cole",
   "age": "50-54",
   "role": "functional health coach",
