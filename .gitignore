@@ -21,3 +21,7 @@ clips.txt
 subtitles.ass
 voiceover.txt
 *.wav
+pipeline_google_omni_stack/runs/
+social_scheduler/queue.json
+social_scheduler/config.meta.local.json
+daily_factory/v11_*/

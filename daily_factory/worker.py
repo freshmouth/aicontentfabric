@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from .first_frames import prepare_omni_v11_first_frames
+
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -34,6 +36,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default="", help="Optional working directory; defaults to a temporary directory.")
     args = parser.parse_args(argv)
 
+    load_env(ROOT / ".env.local")
     config_path = Path(args.config).resolve()
     config = read_json(config_path)
     queue = read_json(ROOT / "daily_factory" / "content_queue.json")
@@ -54,6 +57,14 @@ def main(argv: list[str] | None = None) -> int:
     work_dir = Path(args.out).resolve() if args.out else Path(tempfile.mkdtemp(prefix=f"daily-factory-{run_date}-"))
     work_dir.mkdir(parents=True, exist_ok=True)
     generated_config = build_omni_config(config, concept, run_date, work_dir)
+    if use_omni_v11(config) and not dry_run:
+        generated_config = prepare_omni_v11_first_frames(generated_config, config, work_dir=work_dir, root=ROOT)
+    elif use_omni_v11(config):
+        generated_config["recipe_id"] = "daily_factory_v1_1"
+        generated_config["first_frame_source"] = {
+            "provider": "openai_images",
+            "mode": "dry_run_not_generated",
+        }
     generated_config_path = work_dir / "omni_config.json"
     write_json(generated_config_path, generated_config)
     manifest: dict[str, Any] = {
@@ -71,7 +82,10 @@ def main(argv: list[str] | None = None) -> int:
         if os.environ.get("CLOUD_RUN_JOB"):
             cloud_token = google_access_token()
             read_gcs_json(bucket, f"{prefix}/dry-run-credential-probe.json", cloud_token)
-            for secret_name in ("INSTAGRAM_ACCESS_TOKEN", "FACEBOOK_PAGE_ACCESS_TOKEN"):
+            required_secrets = ["INSTAGRAM_ACCESS_TOKEN", "FACEBOOK_PAGE_ACCESS_TOKEN"]
+            if use_omni_v11(config):
+                required_secrets.append(str(config.get("openai_api_key_env") or "OPENAI_API_KEY"))
+            for secret_name in required_secrets:
                 if not os.environ.get(secret_name, "").strip():
                     raise DailyFactoryError(f"Cloud secret is missing: {secret_name}")
             probe_object = f"{prefix}/dry-run-public-delivery-probe.json"
@@ -197,7 +211,7 @@ def build_omni_config(config: dict[str, Any], concept: dict[str, Any], run_date:
     return {
         "name": f"Daily Claire Reel {run_date}",
         "concept_id": concept["id"],
-        "recipe_id": "daily_factory_v1",
+        "recipe_id": str(config.get("recipe_id") or "daily_factory_v1"),
         "google_omni_flash": {
             "model": str(config.get("omni_model") or "gemini-omni-flash-preview"),
             "project_id": project_id,
@@ -330,6 +344,13 @@ def variant_settings(concept: dict[str, Any], run_date: str, segments: list[dict
         "seed": int(run_date.replace("-", "")),
         "stitch_leaf_segments": True,
     }
+
+
+def use_omni_v11(config: dict[str, Any]) -> bool:
+    recipe = str(config.get("recipe_id") or "").strip().lower()
+    if recipe in {"daily_factory_v1_1", "omni_v1_1", "google_omni_v1_1"}:
+        return True
+    return env_bool("DAILY_FACTORY_OMNI_V11", False)
 
 
 def publish_platforms(config: dict[str, Any], video: Path, public_url: str, caption: str) -> dict[str, Any]:
@@ -474,6 +495,17 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
 
 def json_bytes(payload: dict[str, Any]) -> bytes:
     return (json.dumps(payload, indent=2, ensure_ascii=True) + "\n").encode("utf-8")
+
+
+def load_env(path: Path) -> None:
+    if not path.exists():
+        return
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
 def utc_now() -> str:

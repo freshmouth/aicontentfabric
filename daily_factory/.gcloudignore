@@ -4,6 +4,7 @@
 daily_factory/dry_run/
 daily_factory/dry_run*/
 daily_factory/live_*/
+daily_factory/v11_*/
 !pipeline_google_omni_stack/
 !pipeline_google_omni_stack/**
 pipeline_google_omni_stack/runs/

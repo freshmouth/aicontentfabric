@@ -7,8 +7,9 @@
       "cta_keyword": "LABEL",
       "hook_overlay": "THEY LIED TO YOU ABOUT BREAKFAST",
       "caption": "The front of the packet is designed to win your trust. The back tells you what you are actually buying. Comment LABEL and I will send the 3-second label scan before your next grocery run.",
+      "forbidden_objects": "orange, malformed orange, citrus fruit, banana pile, fruit bowl, grocery produce bag, salad dressing, salad greens, ebook covers, creator-branded products, fake wellness jars, extra CTA cards",
       "hook": "That heart-healthy oatmeal packet? It is not breakfast. It is dessert with a wellness costume.",
-      "hook_visual": "Single continuous supermarket breakfast aisle selfie. Claire holds one real Quaker Instant Oatmeal Maple & Brown Sugar packet close to the camera, then flips it toward the nutrition panel. The packet is the only product in her hand. No unrelated fruit, no fruit bowl, no salad, no dressing bottle.",
+      "hook_visual": "Single continuous supermarket breakfast aisle selfie. Claire holds one real Quaker Instant Oatmeal Maple & Brown Sugar packet close to the camera, then flips it toward the nutrition panel. The packet is the only product in her hand. No orange, no citrus fruit, no banana pile, no fruit bowl, no salad, no dressing bottle.",
       "segments": [
         {
           "id": "front_trust_trick",
@@ -26,8 +27,8 @@
         {
           "id": "identity_absolution",
           "duration_seconds": 6,
-          "visual": "Single continuous kitchen counter shot. Claire sets the oatmeal packet down, looks back to camera, and gestures once with an empathetic but firm expression.",
-          "dialogue": "You were not being stupid. You were being trusting. They turned that trust into profit."
+          "visual": "Single continuous kitchen counter shot. Claire stands in a new clean kitchen angle with the oatmeal packet off to the side, no fruit bowl, no citrus, no orange, no banana pile, looks back to camera, and gestures once with an empathetic but firm expression.",
+          "dialogue": "You were not wrong. The package was designed to make you relax. That confidence became profit."
         },
         {
           "id": "plain_oats_control",

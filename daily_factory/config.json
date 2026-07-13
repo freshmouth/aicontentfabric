@@ -1,11 +1,19 @@
 {
   "schema_version": 1,
-  "release": "v1",
+  "release": "v1.1",
+  "recipe_id": "daily_factory_v1_1",
   "timezone": "America/Mexico_City",
   "project_id": "ai-content-factory-501821",
   "bucket": "ai-content-factory-501821-omni-outputs",
   "output_prefix": "daily-factory",
   "reference_image": "characters/claire_natural/master_reference.png",
+  "openai_api_key_env": "OPENAI_API_KEY",
+  "openai": {
+    "image_model": "gpt-image-2",
+    "image_size": "720x1280",
+    "image_quality": "medium",
+    "timeout_seconds": 240
+  },
   "omni_model": "gemini-omni-flash-preview",
   "omni_location": "global",
   "meta_config": "social_scheduler/config.meta.github.json",
