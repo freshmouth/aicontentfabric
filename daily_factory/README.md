@@ -17,6 +17,27 @@ This release runs the existing Google Omni Flash creative stack as a Cloud Run J
 python -m daily_factory.worker --dry-run --out daily_factory/dry_run
 ```
 
+## Characters
+
+The daily factory now resolves the on-camera person from a character registry. Existing concepts use `claire_natural` by default. To use a different person, set `character_id` on the concept:
+
+```json
+{
+  "id": "example_sarah_concept",
+  "character_id": "sarah_cole",
+  "hook_overlay": "YOUR BREAKFAST LABEL IS LYING",
+  "hook": "That wellness word on the front is not the decision. The back is.",
+  "segments": ["One complete spoken segment."]
+}
+```
+
+Each character owns its own folder under `characters/<character_id>/` with `character.json` and `master_reference.png`. Character identity, outfit, room, and voice metadata do not carry across characters; only the generation, finishing, scheduling, and publishing automation is shared.
+
+Available characters:
+
+- `claire_natural`: existing default daily factory identity.
+- `sarah_cole`: functional health coach, age 50-54, cream V-neck cashmere sweater, gold coin pendant, warm oak office, School of Medicine certificate, Outlive/Lifespan books, olive tree, calm authority voice at 128 WPM.
+
 ## Cloud resources
 
 - Cloud Run Job: `ai-content-daily-factory`

@@ -12,6 +12,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from .characters import CharacterProfile, load_character
+
 
 class FirstFrameError(RuntimeError):
     pass
@@ -32,10 +34,10 @@ def prepare_omni_v11_first_frames(
 ) -> dict[str, Any]:
     """Generate scene-owned first frames and wire them as Omni references.
 
-    v1.1 deliberately does not pass Claire's full master_reference.png into Omni, because
-    the current canonical image contains an orange prop. Instead, we derive a face-only
-    identity crop from that canonical image, generate one clean first frame per leaf scene,
-    then use each first frame as the sole video reference for that leaf.
+    v1.1 deliberately does not pass a full character master image into Omni. Instead,
+    we derive a face-only identity crop from the selected character's canonical image,
+    generate one clean first frame per leaf scene, then use each first frame as the
+    sole video reference for that leaf.
     """
     api_key_env = str(runtime_config.get("openai_api_key_env") or "OPENAI_API_KEY")
     api_key = os.environ.get(api_key_env, "").strip()
@@ -44,8 +46,9 @@ def prepare_omni_v11_first_frames(
 
     output_dir = work_dir / "first_frames"
     output_dir.mkdir(parents=True, exist_ok=True)
-    reference_image = resolve_path(root, str(runtime_config.get("reference_image") or "characters/claire_natural/master_reference.png"))
-    identity_crop = output_dir / "claire_identity_face.png"
+    character = load_character(root, runtime_config, dict(omni_config.get("concept") or {}))
+    reference_image = resolve_path(root, character.master_reference)
+    identity_crop = output_dir / f"{character.character_id}_identity_face.png"
     ensure_identity_crop(reference_image, identity_crop, ffmpeg_path=str(runtime_config.get("ffmpeg_path") or "ffmpeg"))
 
     openai_config = dict(runtime_config.get("openai") or {})
@@ -65,6 +68,7 @@ def prepare_omni_v11_first_frames(
             scene_id=f"{leaf['role']}:{leaf['component_id']}:{leaf['segment_id']}",
             leaf_prompt=str(leaf["node"].get("prompt") or ""),
             product_only=product_only,
+            character=character,
         )
         prompt_path = first_frame_path.with_suffix(".prompt.txt")
         prompt_path.write_text(prompt, encoding="utf-8")
@@ -86,6 +90,7 @@ def prepare_omni_v11_first_frames(
                 "prompt_path": str(prompt_path),
                 "first_frame": str(first_frame_path),
                 "identity_crop_used": str(identity_crop) if refs else "",
+                "character_id": character.character_id,
             }
         )
 
@@ -98,6 +103,7 @@ def prepare_omni_v11_first_frames(
     omni_config["first_frame_source"] = {
         "provider": "openai_images",
         "mode": "scene_first_frame_to_omni_reference",
+        "character_id": character.character_id,
         "identity_crop": str(identity_crop),
         "manifest": str(output_dir / "first_frame_manifest.json"),
     }
@@ -137,22 +143,23 @@ def is_product_only(node: dict[str, Any]) -> bool:
     return "product-only" in prompt or "no face visible" in prompt or "no selfie framing" in prompt
 
 
-def build_first_frame_prompt(*, scene_id: str, leaf_prompt: str, product_only: bool) -> str:
+def build_first_frame_prompt(*, scene_id: str, leaf_prompt: str, product_only: bool, character: CharacterProfile) -> str:
     identity_line = (
-        "If a face identity reference is attached, use it only for Claire's face, age, eyes, skin texture, and hair. "
+        f"If a face identity reference is attached, use it only for {character.name}'s face, age, eyes, skin texture, and hair. "
         "Do not copy its room, clothing, hands, fruit, orange, background objects, or props."
     )
     if product_only:
-        identity_line = "This is product-only B-roll. Do not show Claire, a face, a selfie, or any human body except the single hand if requested."
+        identity_line = f"This is product-only B-roll. Do not show {character.name}, a face, a selfie, or any human body except the single hand if requested."
     return "\n".join(
         [
             "Create one hyper-realistic 9:16 vertical first frame for a UGC health reel clip.",
             "This image will be used as the exact visual source for video generation, so it must be clean, stable, and scene-specific.",
+            f"Character lock: {character.prompt_identity()}",
             identity_line,
             "Use only the objects named in this scene prompt. Do not import props from any other reference image or previous video.",
             BANNED_PROP_LINE,
             "No text overlays, no captions, no watermark, no social UI, no fake CTA card.",
-            "Use real supermarket product cues when a product is named. Never make a Claire-branded product.",
+            f"Use real supermarket product cues when a product is named. Never make a {character.name}-branded product.",
             "Keep the frame candid and smartphone-realistic, but avoid awkward hallucinated hands, floating products, or utensils stuck through objects.",
             f"Scene id: {scene_id}",
             "Scene prompt:",
@@ -256,7 +263,7 @@ def build_multipart_form_data(fields: dict[str, str], image_paths: list[Path]) -
 
 def ensure_identity_crop(source: Path, output_path: Path, *, ffmpeg_path: str) -> None:
     if not source.exists() or source.stat().st_size <= 0:
-        raise FirstFrameError(f"Missing Claire master reference: {source}")
+        raise FirstFrameError(f"Missing character master reference: {source}")
     if output_path.exists() and output_path.stat().st_size > 0:
         return
     output_path.parent.mkdir(parents=True, exist_ok=True)

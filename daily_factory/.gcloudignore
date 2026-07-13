@@ -16,6 +16,11 @@ social_scheduler/queue.json
 !characters/claire_natural/
 characters/claire_natural/*
 !characters/claire_natural/master_reference.png
+!characters/claire_natural/character.json
+!characters/sarah_cole/
+characters/sarah_cole/*
+!characters/sarah_cole/master_reference.png
+!characters/sarah_cole/character.json
 **/__pycache__/
 **/*.pyc
 **/*.mp4

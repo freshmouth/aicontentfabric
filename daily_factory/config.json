@@ -6,7 +6,18 @@
   "project_id": "ai-content-factory-501821",
   "bucket": "ai-content-factory-501821-omni-outputs",
   "output_prefix": "daily-factory",
+  "default_character_id": "claire_natural",
   "reference_image": "characters/claire_natural/master_reference.png",
+  "characters": {
+    "claire_natural": {
+      "metadata_path": "characters/claire_natural/character.json",
+      "master_reference": "characters/claire_natural/master_reference.png"
+    },
+    "sarah_cole": {
+      "metadata_path": "characters/sarah_cole/character.json",
+      "master_reference": "characters/sarah_cole/master_reference.png"
+    }
+  },
   "openai_api_key_env": "OPENAI_API_KEY",
   "openai": {
     "image_model": "gpt-image-2",

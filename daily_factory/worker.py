@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from .characters import CharacterProfile, character_text, load_character
 from .first_frames import prepare_omni_v11_first_frames
 
 
@@ -185,7 +186,8 @@ def select_concept(queue: dict[str, Any], run_date: str, concept_id: str = "") -
 
 
 def build_omni_config(config: dict[str, Any], concept: dict[str, Any], run_date: str, work_dir: Path) -> dict[str, Any]:
-    reference = str(config.get("reference_image") or "characters/claire_natural/master_reference.png")
+    character = load_character(ROOT, config, concept)
+    reference = character.master_reference
     project_id = str(config["project_id"])
     bucket = str(config["bucket"])
     cta_keyword = str(concept.get("cta_keyword") or "LABEL").strip().upper()
@@ -203,14 +205,20 @@ def build_omni_config(config: dict[str, Any], concept: dict[str, Any], run_date:
                 dialogue=segment["dialogue"],
                 concept=concept,
                 role=f"main scene {index}",
+                character=character,
             ),
         }
         if "reference_images" in segment:
             generated_segment["reference_images"] = segment["reference_images"]
         segments.append(generated_segment)
     return {
-        "name": f"Daily Claire Reel {run_date}",
+        "name": f"Daily {character.name} Reel {run_date}",
         "concept_id": concept["id"],
+        "concept": {
+            "id": concept["id"],
+            "character_id": character.character_id,
+        },
+        "character": character_payload(character),
         "recipe_id": str(config.get("recipe_id") or "daily_factory_v1"),
         "google_omni_flash": {
             "model": str(config.get("omni_model") or "gemini-omni-flash-preview"),
@@ -224,7 +232,7 @@ def build_omni_config(config: dict[str, Any], concept: dict[str, Any], run_date:
             "background": True,
         },
         "defaults": {"aspect_ratio": "9:16", "duration_seconds": 8, "resolution": "720p"},
-        "master_prompt": master_prompt(),
+        "master_prompt": master_prompt(character),
         "hooks": [{
             "id": "daily_hook",
             "title": concept["id"],
@@ -233,11 +241,12 @@ def build_omni_config(config: dict[str, Any], concept: dict[str, Any], run_date:
             "prompt": scene_prompt(
                 visual=str(
                     concept.get("hook_visual")
-                    or "Single continuous supermarket selfie shot. Claire holds only the named supermarket product for this concept close to the camera, then lowers it slightly while maintaining direct eye contact."
+                    or f"Single continuous supermarket selfie shot. {character.name} holds only the named supermarket product for this concept close to the camera, then lowers it slightly while maintaining direct eye contact."
                 ),
                 dialogue=str(concept["hook"]),
                 concept=concept,
                 role="hook",
+                character=character,
             ),
         }],
         "meals": [{
@@ -255,7 +264,7 @@ def build_omni_config(config: dict[str, Any], concept: dict[str, Any], run_date:
             "prompt": scene_prompt(
                 visual=str(
                     concept.get("cta_visual")
-                    or "Single continuous kitchen selfie shot. Claire points down once with direct eye contact. No card and no generated text."
+                    or f"Single continuous kitchen selfie shot. {character.name} points down once with direct eye contact. No card and no generated text."
                 ),
                 dialogue=str(
                     concept.get("cta")
@@ -263,23 +272,36 @@ def build_omni_config(config: dict[str, Any], concept: dict[str, Any], run_date:
                 ),
                 concept=concept,
                 role="CTA",
+                character=character,
             ),
         }],
         "variants": variant_settings(concept, run_date, segments),
     }
 
 
-def master_prompt() -> str:
+def character_payload(character: CharacterProfile) -> dict[str, str]:
+    return {
+        "character_id": character.character_id,
+        "name": character.name,
+        "master_reference": character.master_reference,
+        "metadata_path": character.metadata_path,
+        "identity": character.prompt_identity(),
+        "voice": character.voice,
+    }
+
+
+def master_prompt(character: CharacterProfile) -> str:
     return (
         "GOOGLE OMNI MASTER PROMPT. Create ONE vertical 9:16 realistic UGC smartphone clip with native spoken audio. "
         "This is one leaf scene, never a montage or multi-scene story. Never combine multiple scenes inside one generated clip. "
-        "When a Claire reference image is supplied, use it as the fixed identity anchor and preserve her face, age, eyes, skin texture, hair, and ordinary appearance. "
-        "For product-only B-roll without a reference image, do not show a face. Casual gray top when Claire is visible. One continuous handheld iPhone-style shot. "
+        f"Selected character: {character.prompt_identity()} "
+        f"When a {character.name} reference image is supplied, use it as the fixed identity anchor and preserve the same face, age, eyes, skin texture, hair, and ordinary appearance. "
+        f"For product-only B-roll without a reference image, do not show a face. {character.outfit or 'Use the selected character outfit'} when {character.name} is visible. One continuous handheld iPhone-style shot. "
         "Use only the named environment and objects for this exact scene. Do not carry objects from earlier scenes into later scenes unless named again. "
         "Objects remain solid, correctly gripped, and physically realistic. "
         "Natural restrained movement, direct eye contact while speaking, no floating, sliding, morphing, duplicate products, jump cuts, location changes, "
         "cinematic movement, beauty filter, text, subtitles, logos, social UI, or extra dialogue. Start speaking immediately and finish the full line. "
-        "No unfinished sentence, no repeated words, no repeated opening phrase, and no trailing self-interruption. Claire is a person, never a product brand. "
+        f"No unfinished sentence, no repeated words, no repeated opening phrase, and no trailing self-interruption. {character.name} is a person, never a product brand. "
         "Use real supermarket product cues and named real supermarket products when provided. Never invent creator-branded products. "
         "Do not render prompt-control wording or the creator name on packaging. Say only the exact Native dialogue once."
     )
@@ -316,17 +338,19 @@ def normalize_segment(raw_segment: Any, index: int) -> dict[str, Any]:
     return normalized
 
 
-def scene_prompt(*, visual: str, dialogue: str, concept: dict[str, Any], role: str) -> str:
+def scene_prompt(*, visual: str, dialogue: str, concept: dict[str, Any], role: str, character: CharacterProfile) -> str:
     forbidden = str(
         concept.get("forbidden_objects")
         or "unrelated fruit, juice bottles, salad dressing, salad greens, ebook covers, creator-branded products, fake wellness jars, extra CTA cards"
     )
+    visual = character_text(visual, character)
+    dialogue = character_text(dialogue, character)
     return (
         f"{visual.strip()}\n"
         f"Scene role: {role}. This is one complete leaf clip only.\n"
         f"Object lock: use only the objects named in this scene. Forbidden unless explicitly named in this scene: {forbidden}.\n"
         "Product lock: products must look like real supermarket items from actual stores. If a known brand is named, use that brand cue naturally; "
-        "do not replace it with a made-up Claire brand, do not print prompt-control wording on the package, and do not invent fake readable claims.\n"
+        f"do not replace it with a made-up {character.name} brand, do not print prompt-control wording on the package, and do not invent fake readable claims.\n"
         "Physics lock: no floating, sliding, warping, duplicate packages, extra fingers, hands passing through objects, or utensils buried inside jars.\n"
         "Continuity lock: the spoken line starts cleanly, ends as a complete sentence, and is not repeated.\n"
         f"Native dialogue: {dialogue.strip()}"

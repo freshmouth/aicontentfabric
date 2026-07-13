@@ -41,6 +41,18 @@ class DailyWorkerTests(unittest.TestCase):
         self.assertEqual(generated["variants"]["count"], 1)
         self.assertIn("master_reference.png", generated["hooks"][0]["reference_images"][0])
 
+    def test_sarah_cole_uses_independent_character_reference(self):
+        concept = select_concept(self.queue, "2026-07-13", "oatmeal_sovereign_label_scan")
+        concept["character_id"] = "sarah_cole"
+        with tempfile.TemporaryDirectory() as directory:
+            generated = build_omni_config(self.config, concept, "2026-07-13", Path(directory))
+        prompt_blob = json.dumps(generated)
+        self.assertEqual(generated["character"]["character_id"], "sarah_cole")
+        self.assertEqual(generated["hooks"][0]["reference_images"], ["characters/sarah_cole/master_reference.png"])
+        self.assertIn("Sarah Cole", prompt_blob)
+        self.assertNotIn("characters/claire_natural/master_reference.png", prompt_blob)
+        self.assertNotIn("Claire holds", prompt_blob)
+
 
 if __name__ == "__main__":
     unittest.main()
