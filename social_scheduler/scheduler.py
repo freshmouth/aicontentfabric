@@ -33,9 +33,13 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "run-due":
             result = run_due(args)
             print(json.dumps(result, indent=2))
+            if any(item.get("status") not in {"published", "dry_run"} for item in result.get("results", [])):
+                return 2
         elif args.command == "publish-now":
             result = publish_now(args)
             print(json.dumps(result, indent=2))
+            if result.get("status") not in {"published", "dry_run"}:
+                return 2
         elif args.command == "status":
             print(json.dumps(read_queue(Path(args.queue)), indent=2))
         elif args.command == "discover-accounts":
@@ -159,20 +163,33 @@ def publish_record(
         record.setdefault("attempts", []).append(attempt)
         return {"id": record.get("id"), "status": record["status"], "attempt": attempt}
 
-    try:
-        if "instagram" in platforms:
-            attempt["platforms"]["instagram"] = client.publish_instagram_reel(
-                video_url=str(record.get("public_video_url") or ""),
-                caption=caption,
-                share_to_feed=True,
-            )
-        if "facebook" in platforms:
-            attempt["platforms"]["facebook"] = client.publish_facebook_reel(video_path=video_path, caption=caption)
+    failed_platforms: list[str] = []
+    successful_platforms: list[str] = []
+    for platform in platforms:
+        try:
+            if platform == "instagram":
+                attempt["platforms"]["instagram"] = client.publish_instagram_reel(
+                    video_url=str(record.get("public_video_url") or ""),
+                    caption=caption,
+                    share_to_feed=True,
+                )
+            elif platform == "facebook":
+                attempt["platforms"]["facebook"] = client.publish_facebook_reel(video_path=video_path, caption=caption)
+            successful_platforms.append(platform)
+        except (MetaGraphError, SchedulerError) as exc:
+            failed_platforms.append(platform)
+            attempt["platforms"][platform] = {"status": "failed", "error": str(exc)}
+
+    attempt["successful_platforms"] = successful_platforms
+    attempt["failed_platforms"] = failed_platforms
+    if failed_platforms:
+        record.setdefault("requested_platforms", list(platforms))
+        record["platforms"] = failed_platforms
+        record["status"] = "partial_failed" if successful_platforms else "failed_retryable"
+    else:
         record["status"] = "published"
+        record["platforms"] = []
         record["published_at"] = now_iso()
-    except (MetaGraphError, SchedulerError) as exc:
-        attempt["error"] = str(exc)
-        record["status"] = "failed_retryable"
     record.setdefault("attempts", []).append(attempt)
     return {"id": record.get("id"), "status": record["status"], "attempt": attempt}
 

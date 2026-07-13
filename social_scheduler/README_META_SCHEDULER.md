@@ -128,3 +128,5 @@ python -m social_scheduler.scheduler `
 - The scheduler is local. Meta does not need to know your desired future time; `run-due` publishes when the queue item is due.
 - For Instagram, host the MP4 somewhere Meta can fetch it.
 - For Facebook, `facebook_mode: "reels"` uses the Page Reels upload flow. Use `"page_video"` only as a fallback.
+- GitHub Actions cron is best-effort and can start late, especially at minute `0`. Use Google Cloud Scheduler for publishing that must occur at an exact time.
+- Platform results are independent. If Instagram succeeds and Facebook fails, retries target Facebook only and the command exits nonzero until all requested platforms succeed.

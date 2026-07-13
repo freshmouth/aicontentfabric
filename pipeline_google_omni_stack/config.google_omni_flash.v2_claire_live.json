@@ -1,0 +1,85 @@
+{
+  "name": "Claire Natural Google Omni Flash V2 Test",
+  "concept_id": "v2_seed_oil_salad_swap_leaf_strict_002",
+  "recipe_id": "v2",
+  "recipe_source": "prompt_recipes/V2",
+  "google_omni_flash": {
+    "model": "gemini-omni-flash-preview",
+    "project_id": "ai-content-factory-501821",
+    "project_env": "GOOGLE_CLOUD_PROJECT",
+    "location": "global",
+    "access_token_env": "GOOGLE_OAUTH_ACCESS_TOKEN",
+    "output_gcs_uri": "gs://ai-content-factory-501821-omni-outputs/v2_seed_oil_salad_swap_leaf_strict_002/outputs/",
+    "poll_seconds": 10,
+    "timeout_seconds": 1200,
+    "retries": 2,
+    "background": true
+  },
+  "defaults": {
+    "aspect_ratio": "9:16",
+    "duration_seconds": 8,
+    "resolution": "720p"
+  },
+  "master_prompt": "GOOGLE OMNI MASTER PROMPT. Create ONE vertical 9:16 realistic UGC smartphone clip with native spoken audio. This is a single leaf scene, not a full reel, not a montage, not a multi-scene story. Claire Natural is a trustworthy 35-year-old natural health educator with dark brown hair in a messy ponytail, warm brown eyes, realistic skin texture, minimal makeup, and a candid smartphone presence. Use the provided Claire reference image as the identity anchor. Preserve her face shape, age, eyes, skin texture, hair, and ordinary relatable appearance. Wardrobe lock: casual gray tank top or simple everyday casual shirt only. Never robe, pajamas, lab coat, blazer, apron costume, influencer outfit, or loungewear. Scene lock: stay in the exact environment described for this leaf scene. Do not jump locations inside the clip. Object lock: use only the objects named in the scene. Do not invent extra products, floating products, extra cards, extra bottles, fake ebooks, fake labels, or extra CTAs. Performance lock: one continuous handheld iPhone-style shot, natural motion, direct eye contact when speaking, realistic hand movement, no floating objects, no sliding products, no impossible product physics. Dialogue lock: Claire says only the exact Native dialogue for this scene, once. Do not add extra lines, extra calls to action, subtitles, captions, text overlays, watermarks, logos, fake social UI, or medical certainty claims. Product authenticity rule: Claire Natural is the on-camera person only, never a product brand, package label, ebook cover, receipt title, sticker, or CTA asset. Use ordinary supermarket product cues and generic retail packaging; do not put the text Claire Natural on products or packaging. Avoid cinematic polish, beauty filters, exaggerated acting, dramatic camera movement, and hallucinated props.",
+  "hooks": [
+    {
+      "id": "salad_dressing_health_halo_hook",
+      "title": "You Skipped Dessert, Then Poured It on Your Salad",
+      "duration_seconds": 7,
+      "reference_images": [
+        "characters/claire_natural/master_reference.png"
+      ],
+      "prompt": "Single continuous shot in a supermarket condiment aisle. Claire wears a casual gray top and holds one generic creamy salad dressing bottle close to the camera, label mostly turned away. No other object in her hands. Direct eye contact. Native dialogue: You skipped dessert, then poured added sugar over your salad. That healthy dressing may be the most misleading bottle in this aisle. Flip the bottle before you trust the front."
+    }
+  ],
+  "meals": [
+    {
+      "id": "olive_oil_vinegar_salad_swap",
+      "title": "Olive Oil Vinegar Salad Swap",
+      "reference_images": [
+        "characters/claire_natural/master_reference.png"
+      ],
+      "prompt": "Four separate leaf scenes. Each scene is one continuous shot with one action only. Do not create a montage inside any scene.",
+      "segments": [
+        {
+          "id": "front_label_trap",
+          "duration_seconds": 8,
+          "prompt": "Single continuous supermarket aisle shot. Claire wears a casual gray top and holds one generic salad dressing bottle front-facing for one second, then begins to turn it around. No greens, no cart, no extra products in her hands. Native dialogue: The front says garden, light, and avocado. But the part that matters is usually hiding on the back."
+        },
+        {
+          "id": "ingredient_check",
+          "duration_seconds": 8,
+          "prompt": "Single continuous close shot. Claire holds the same generic dressing bottle steady and points near the ingredient list. Keep text unreadable and brand-free. No scene change. Native dialogue: First I check the oil, then added sugar, then how long the ingredient list gets."
+        },
+        {
+          "id": "kitchen_swap_start",
+          "duration_seconds": 8,
+          "prompt": "Single continuous lived-in kitchen counter shot. Claire wears the same casual gray top. On the counter: olive oil, vinegar, lemon, mustard, garlic, herbs, and a bowl of greens. Claire points to each ingredient once. Native dialogue: The swap is not a diet dressing. It's olive oil, vinegar, lemon, mustard, garlic, done."
+        },
+        {
+          "id": "mix_and_payoff",
+          "duration_seconds": 8,
+          "prompt": "Single continuous close food shot. Claire shakes one small jar of dressing and pours it over one bowl of greens. The jar stays in her hand and does not float or slide. Native dialogue: You get flavor, fat that makes sense, and the bottle stops turning your salad into a label trick."
+        }
+      ]
+    }
+  ],
+  "ctas": [
+    {
+      "id": "comment_label_swap",
+      "title": "Comment LABEL",
+      "duration_seconds": 7,
+      "reference_images": [
+        "characters/claire_natural/master_reference.png"
+      ],
+      "prompt": "Single continuous kitchen selfie shot. Claire wears the same casual gray top and holds one plain handwritten card that says LABEL CHECKLIST beside olive oil and vinegar on the counter. No other CTA text. Native dialogue: Comment LABEL and I'll send you the three things I check before a dressing goes in my cart."
+    }
+  ],
+  "variants": {
+    "count": 1,
+    "min_total_seconds": 40,
+    "max_total_seconds": 55,
+    "seed": 260710,
+    "stitch_leaf_segments": true
+  }
+}

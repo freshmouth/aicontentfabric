@@ -1,9 +1,17 @@
 name: Publish Reel 2026-07-12 09:00
 
 on:
-  schedule:
-    - cron: "0 15 12 7 *"
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: Platforms to publish during this recovery run
+        required: true
+        default: facebook
+        type: choice
+        options:
+          - facebook
+          - instagram
+          - instagram,facebook
 
 jobs:
   publish:
@@ -13,6 +21,7 @@ jobs:
       INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
       FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
       META_GRAPH_SSL_NO_VERIFY: "0"
+      PUBLISH_PLATFORMS: ${{ inputs.platforms || 'facebook' }}
       VIDEO_URL: "https://storage.googleapis.com/ai-content-factory-501821-omni-outputs/meta-reels/20260710_211636_final-video-publish-ready.mp4"
       CAPTION: "Your salad dressing might be dessert oil. Comment LABEL and I'll send the 3 things I check before a dressing goes in my cart."
 
@@ -38,5 +47,5 @@ jobs:
             --video final_video_publish_ready.mp4 \
             --public-video-url "$VIDEO_URL" \
             --caption "$CAPTION" \
-            --platforms instagram,facebook \
+            --platforms "$PUBLISH_PLATFORMS" \
             --skip-hosting
