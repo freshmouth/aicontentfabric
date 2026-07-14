@@ -1,0 +1,58 @@
+name: Publish Reel 2026-07-14 17:00
+
+on:
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: Platforms to publish during a manual recovery run
+        required: true
+        default: instagram,facebook
+        type: choice
+        options:
+          - facebook
+          - instagram
+          - instagram,facebook
+  schedule:
+    - cron: "0 23 14 7 *"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+      FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+      META_GRAPH_SSL_NO_VERIFY: "0"
+      PUBLISH_PLATFORMS: ${{ inputs.platforms || 'instagram,facebook' }}
+      VIDEO_URL: "https://storage.googleapis.com/ai-content-factory-501821-omni-outputs/daily-factory-claire-v2-tests/2026-07-14/claire_v2_test_v1/final_video.mp4"
+      CAPTION: "Protein on the front does not cancel added sugar, serving size, or the crash after. Comment LABEL and I will send the 3-second supermarket scan I use before a product goes in my cart."
+
+    steps:
+      - name: Only run on the intended scheduled date
+        if: github.event_name == 'schedule'
+        run: |
+          test "$(date -u +%Y-%m-%d)" = "2026-07-14"
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download hosted video
+        run: |
+          curl -L --fail --retry 3 --retry-delay 5 "$VIDEO_URL" -o final_video_publish_ready.mp4
+          test -s final_video_publish_ready.mp4
+
+      - name: Publish to Instagram and Facebook
+        run: |
+          python -m social_scheduler.scheduler \
+            --config social_scheduler/config.meta.github.json \
+            publish-now \
+            --video final_video_publish_ready.mp4 \
+            --public-video-url "$VIDEO_URL" \
+            --caption "$CAPTION" \
+            --platforms "$PUBLISH_PLATFORMS" \
+            --skip-hosting
