@@ -35,6 +35,7 @@ class DailyFactoryError(RuntimeError):
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate and publish one daily UGC Reel from the stable Omni stack.")
     parser.add_argument("--config", default=str(ROOT / "daily_factory" / "config.json"))
+    parser.add_argument("--queue", default=str(ROOT / "daily_factory" / "content_queue.json"))
     parser.add_argument("--date", default="", help="Local YYYY-MM-DD. Defaults to today in configured timezone.")
     parser.add_argument("--concept-id", default="", help="Generate a specific concept id instead of the scheduled daily concept.")
     parser.add_argument("--dry-run", action="store_true", help="Build config and manifest without generation or publishing.")
@@ -46,7 +47,7 @@ def main(argv: list[str] | None = None) -> int:
     load_env(ROOT / ".env.local")
     config_path = Path(args.config).resolve()
     config = read_json(config_path)
-    queue = read_json(ROOT / "daily_factory" / "content_queue.json")
+    queue = read_json(Path(args.queue).resolve())
     local_timezone = resolve_timezone(str(config.get("timezone") or "America/Mexico_City"))
     run_date = args.date or datetime.now(local_timezone).date().isoformat()
     concept = select_concept(queue, run_date, args.concept_id)

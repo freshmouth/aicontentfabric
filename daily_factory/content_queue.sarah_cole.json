@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "cta_keyword": "GLUCOSE",
+  "concepts": [
+    {
+      "id": "sarah_orange_glucose_over_40",
+      "character_id": "sarah_cole",
+      "cta_keyword": "GLUCOSE",
+      "hook_duration_seconds": 6,
+      "cta_duration_seconds": 6,
+      "hook_overlay": "STOP EATING THIS FIRST\nif you're over 40\nit's not about calories",
+      "caption": "If breakfast feels healthy but your energy crashes two hours later, the order may matter more than the food. Comment GLUCOSE and Sarah will send the morning glucose protocol.",
+      "forbidden_objects": "Claire Natural, Claire branding, creator-branded products, fake supplement jars, fake wellness products, salad dressing, oatmeal packets, yogurt cups, juice bottles, extra CTA cards, subtitles, social media UI, text overlays",
+      "hook": "If you are over 40 and eating an orange first thing, stop. This is not about the orange. It is about what happens next.",
+      "hook_visual": "Single continuous front-camera office selfie shot. Sarah Cole sits in her warm oak wellness office and holds one ordinary orange close to the lens in her right hand at chest-chin level, pointing at it once with her left index finger. Her cream V-neck sweater, gold coin pendant, warm oak shelves, medicine certificate, Outlive and Lifespan books, and olive tree remain visible. The orange is the only food object in frame.",
+      "segments": [
+        {
+          "id": "healthy_belief",
+          "duration_seconds": 6,
+          "visual": "Single continuous office selfie shot. Sarah lowers the orange slightly to the lower third of frame and keeps direct eye contact. Her expression is calm but firm, like she is correcting a common mistake.",
+          "dialogue": "You were told fruit at breakfast is clean, light, and healthy. That is the story most women learned."
+        },
+        {
+          "id": "after_40_shift",
+          "duration_seconds": 6,
+          "visual": "Single continuous office desk shot. Sarah sets the orange on the warm oak desk beside a plain glass of water, then raises one finger while explaining. No other food appears.",
+          "dialogue": "After 40, insulin sensitivity changes. Your body does not process a fast sugar hit the same way."
+        },
+        {
+          "id": "crash_mechanism",
+          "duration_seconds": 6,
+          "visual": "Single continuous medium office shot. Sarah gestures from the orange to her abdomen once, then back to the lens. The orange stays stable on the desk.",
+          "dialogue": "The spike is not the whole problem. The crash after it can pull cortisol into the morning."
+        },
+        {
+          "id": "identity_reframe",
+          "duration_seconds": 6,
+          "visual": "Single continuous close selfie shot. Sarah leans forward with both forearms near the desk edge, no food held, direct eye contact, empathetic expression.",
+          "dialogue": "So this is not a willpower problem. Your body is responding to timing, order, and missing support."
+        },
+        {
+          "id": "protocol_tease",
+          "duration_seconds": 6,
+          "visual": "Single continuous office shot. Sarah opens a printed chart on the desk, but the chart text is not readable. She taps the page once and looks back into the lens.",
+          "dialogue": "The protocol is simple, but the sequence matters. That is the part most advice leaves out."
+        }
+      ],
+      "cta": "Comment GLUCOSE and I will send you the morning protocol I use to steady the first two hours.",
+      "cta_visual": "Single continuous office selfie shot. Sarah points down once with her left hand, then rests her hand on the warm oak desk. No generated text card, no fake app UI, no extra CTA words in the video."
+    }
+  ]
+}
