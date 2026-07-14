@@ -453,6 +453,9 @@ def rounded_rectangle_ass_path(width: int, height: int, radius: int) -> str:
 
 
 def wrap_hook_caption_text(text: str, max_chars_per_line: int, max_lines: int) -> list[str]:
+    explicit_lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(explicit_lines) > 1:
+        return explicit_lines[:max_lines]
     words = text.split()
     lines: list[str] = []
     current: list[str] = []

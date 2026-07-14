@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "release": "claire_v2_test_v1",
+  "recipe_id": "daily_factory_v1_1",
+  "timezone": "America/Mexico_City",
+  "project_id": "ai-content-factory-501821",
+  "bucket": "ai-content-factory-501821-omni-outputs",
+  "output_prefix": "daily-factory-claire-v2-tests",
+  "default_character_id": "claire_natural",
+  "reference_image": "characters/claire_natural/master_reference.png",
+  "characters": {
+    "claire_natural": {
+      "metadata_path": "characters/claire_natural/character.json",
+      "master_reference": "characters/claire_natural/master_reference.png",
+      "status": "active",
+      "identity_ready": true,
+      "content_ready": true,
+      "publishing_ready": false,
+      "meta_config": ""
+    }
+  },
+  "openai_api_key_env": "OPENAI_API_KEY",
+  "openai": {
+    "image_model": "gpt-image-2",
+    "image_size": "720x1280",
+    "image_quality": "medium",
+    "timeout_seconds": 240
+  },
+  "omni_model": "gemini-omni-flash-preview",
+  "omni_location": "global",
+  "platforms": ["instagram", "facebook"],
+  "publish": false
+}

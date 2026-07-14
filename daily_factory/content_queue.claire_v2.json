@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "cta_keyword": "LABEL",
+  "concepts": [
+    {
+      "id": "claire_v2_protein_granola_cookie",
+      "character_id": "claire_natural",
+      "framework": "claire_v2_ugc_script_framework",
+      "framework_source": "D:/Downloads/ugc-script-generation-framework.md",
+      "cta_keyword": "LABEL",
+      "hook_duration_seconds": 8,
+      "cta_duration_seconds": 3,
+      "hook_overlay": "protein granola is a cookie\nin gym clothes",
+      "caption": "Protein on the front does not cancel added sugar, serving size, or the crash after. Comment LABEL and I will send the 3-second supermarket scan I use before a product goes in my cart.",
+      "backend_offer": {
+        "product_name": "40+ Label Scan guide",
+        "topic_page": "Protein Granola Trap",
+        "dm_keyword": "LABEL",
+        "dm_asset": "concept-specific page from the same supermarket label-scan guide"
+      },
+      "script_strategy": {
+        "hook_used": "H7 Pause for a second",
+        "close_used": "C2 Casual dismount",
+        "audience_temp": "cold",
+        "product_name": "40+ Label Scan guide",
+        "product_category": "digital supermarket label-scan guide",
+        "core_mechanism": "protein, added sugar, and real serving size checked in under three seconds",
+        "common_problem": "buying protein granola as a healthy snack but crashing or craving more later",
+        "hidden_cause": "protein branding can hide small serving sizes, added sugar, and calorie-dense clusters",
+        "failed_alternative": "trusting protein or natural claims on the front of the bag",
+        "honest_timeline": "better cart decisions on the next grocery run, not an overnight body change",
+        "usage_ritual": "check protein, added sugar, and serving size before the product enters the cart"
+      },
+      "forbidden_objects": "orange, citrus fruit, salad dressing, oatmeal packets, yogurt cups, juice bottles, ebook covers, Claire-branded products, creator-branded packaging, fake supplement jars, fake medical props, fake anatomy scenes, grotesque body imagery, extra CTA cards, subtitles, social media UI, text overlays generated inside the scene",
+      "hook": "Pause for a second. If you have ever bought protein granola, you have probably been doing breakfast completely wrong.",
+      "hook_visual": "Single continuous supermarket cereal aisle selfie shot. Claire rushes into frame mid-motion, leans close to the front-facing iPhone camera, and holds one real protein granola bag close to the lens in the lower third, like Nature Valley Protein Granola or KIND Protein Granola. Her eyebrows are raised, her expression is urgent and skeptical, and cereal shelves fill the background. The bag is stable, physically gripped, and never Claire-branded.",
+      "segments": [
+        {
+          "id": "problem_hidden_cause",
+          "duration_seconds": 10,
+          "visual": "Single continuous aisle shot. Claire flips the same real protein granola bag from the front panel to the nutrition panel while keeping direct eye contact, then points near the serving size area. The package stays close enough to feel evidentiary but text is not perfectly readable.",
+          "dialogue": "Here's what I didn't know until I flipped the bag in the aisle. After 40, added sugar plus a tiny serving can still hit like a sweet snack."
+        },
+        {
+          "id": "failed_fix",
+          "duration_seconds": 10,
+          "visual": "Single continuous shopping cart shot. Claire drops one protein granola bag into the cart, then immediately picks it back up with a doubtful half-smile. Other cereal and snack boxes remain blurred in the background. No other food category appears.",
+          "dialogue": "And the frustrating part is that buying the protein version does not automatically fix it. The front of the bag can still make the decision for you."
+        },
+        {
+          "id": "mechanism_guide_enters",
+          "duration_seconds": 10,
+          "visual": "Single continuous aisle medium shot. Claire holds the granola bag at waist level and glances at a simple checklist on her phone for one second, then looks back into the lens. The phone is casual and not a beauty shot; screen text is not readable.",
+          "dialogue": "What works is a three-second label scan: protein, added sugar, real serving. I use my 40 plus Label Scan guide because it keeps that check simple in the aisle."
+        },
+        {
+          "id": "honesty_block",
+          "duration_seconds": 10,
+          "visual": "Single continuous closest selfie frame of the video. Claire lowers her voice, holds the bag out of frame, and speaks directly to the viewer with a small honest shrug. Supermarket shelves remain behind her.",
+          "dialogue": "Real talk, this will not make every snack perfect overnight. The first win is smaller: you stop getting tricked before the bag hits your cart."
+        }
+      ],
+      "cta": "Most people have no idea the serving size is the trap. Now you do.",
+      "cta_visual": "Single continuous final aisle shot. Claire calmly places the protein granola bag back on the shelf, then gives the camera a small half-smile. No text card, no fake app UI, no spoken comment instruction."
+    }
+  ]
+}
