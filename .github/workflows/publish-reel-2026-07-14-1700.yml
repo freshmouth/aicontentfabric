@@ -12,9 +12,6 @@ on:
           - facebook
           - instagram
           - instagram,facebook
-  schedule:
-    - cron: "0 23 14 7 *"
-
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -28,11 +25,6 @@ jobs:
       CAPTION: "Protein on the front does not cancel added sugar, serving size, or the crash after. Comment LABEL and I will send the 3-second supermarket scan I use before a product goes in my cart."
 
     steps:
-      - name: Only run on the intended scheduled date
-        if: github.event_name == 'schedule'
-        run: |
-          test "$(date -u +%Y-%m-%d)" = "2026-07-14"
-
       - name: Check out repository
         uses: actions/checkout@v4
 

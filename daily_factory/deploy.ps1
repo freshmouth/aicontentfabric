@@ -2,7 +2,8 @@ param(
     [string]$Project = "ai-content-factory-501821",
     [string]$Region = "us-central1",
     [string]$ServiceAccount = "daily-factory@$Project.iam.gserviceaccount.com",
-    [string]$Tag = (Get-Date -Format "yyyyMMdd-HHmmss")
+    [string]$Tag = (Get-Date -Format "yyyyMMdd-HHmmss"),
+    [bool]$EnableScheduler = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,12 +17,18 @@ gcloud.cmd run jobs update ai-content-daily-factory --project $Project --region 
 gcloud.cmd run jobs execute ai-content-daily-factory --project $Project --region $Region --wait
 gcloud.cmd run jobs update ai-content-daily-factory --project $Project --region $Region --update-env-vars "DAILY_FACTORY_DRY_RUN=false"
 
-$JobUri = "https://$Region-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/$Project/jobs/ai-content-daily-factory:run"
-gcloud.cmd scheduler jobs describe ai-content-daily-0913 --project $Project --location $Region 2>$null
-if ($LASTEXITCODE -eq 0) {
-    gcloud.cmd scheduler jobs update http ai-content-daily-0913 --project $Project --location $Region --schedule "13 9 * * *" --time-zone "America/Mexico_City" --uri $JobUri --http-method POST --oauth-service-account-email $ServiceAccount --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform" --headers "Content-Type=application/json" --message-body "{}" --attempt-deadline 5m
+if ($EnableScheduler) {
+    $JobUri = "https://$Region-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/$Project/jobs/ai-content-daily-factory:run"
+    gcloud.cmd scheduler jobs describe ai-content-daily-0913 --project $Project --location $Region 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        gcloud.cmd scheduler jobs update http ai-content-daily-0913 --project $Project --location $Region --schedule "13 9 * * *" --time-zone "America/Mexico_City" --uri $JobUri --http-method POST --oauth-service-account-email $ServiceAccount --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform" --headers "Content-Type=application/json" --message-body "{}" --attempt-deadline 5m
+        gcloud.cmd scheduler jobs resume ai-content-daily-0913 --project $Project --location $Region
+    } else {
+        gcloud.cmd scheduler jobs create http ai-content-daily-0913 --project $Project --location $Region --schedule "13 9 * * *" --time-zone "America/Mexico_City" --uri $JobUri --http-method POST --oauth-service-account-email $ServiceAccount --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform" --headers "Content-Type=application/json" --message-body "{}" --attempt-deadline 5m
+    }
 } else {
-    gcloud.cmd scheduler jobs create http ai-content-daily-0913 --project $Project --location $Region --schedule "13 9 * * *" --time-zone "America/Mexico_City" --uri $JobUri --http-method POST --oauth-service-account-email $ServiceAccount --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform" --headers "Content-Type=application/json" --message-body "{}" --attempt-deadline 5m
+    gcloud.cmd scheduler jobs pause ai-content-daily-0913 --project $Project --location $Region 2>$null
+    Write-Output "Daily scheduler remains paused. Re-enable with -EnableScheduler `$true after Claire V2 is approved."
 }
 
 Write-Output "Deployed $Image"

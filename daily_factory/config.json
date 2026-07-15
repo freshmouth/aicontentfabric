@@ -38,5 +38,5 @@
   "omni_model": "gemini-omni-flash-preview",
   "omni_location": "global",
   "platforms": ["instagram", "facebook"],
-  "publish": true
+  "publish": false
 }
