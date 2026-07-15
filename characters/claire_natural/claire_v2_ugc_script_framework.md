@@ -1,5 +1,9 @@
 # Claire Natural V2 UGC Script Framework
 
+Status: superseded for future Claire runs by `characters/claire_natural/claire_v2_1_dna_module.md`.
+Do not generate new Claire scripts from this file alone. V2.1 is the active creative gate because it adds
+hard requirements for controversy, visual proof, emotional tension, pacing, and framework compliance.
+
 Source framework: `D:/Downloads/ugc-script-generation-framework.md`
 
 ## Purpose
