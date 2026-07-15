@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "cta_keyword": "LABEL",
+  "concepts": [
+    {
+      "id": "claire_v21_protein_bar_candy_badge",
+      "character_id": "claire_natural",
+      "framework": "claire_v2_1_dna_module",
+      "framework_source": "characters/claire_natural/claire_v2_1_dna_module.md",
+      "runtime_target_seconds": 37,
+      "runtime_max_seconds": 40,
+      "cta_keyword": "LABEL",
+      "hook_duration_seconds": 6,
+      "cta_duration_seconds": 3,
+      "hook_overlay": "this protein bar is dessert\nwearing a gym badge",
+      "caption": "The front says protein. The label tells the real story. Comment LABEL and I will send the 3-second supermarket scan I use before a snack goes in my cart.",
+      "backend_offer": {
+        "product_name": "40+ Label Scan guide",
+        "topic_page": "Protein Bar Candy Badge",
+        "dm_keyword": "LABEL",
+        "dm_asset": "protein snack label checklist page from the 40+ Label Scan guide"
+      },
+      "script_strategy": {
+        "hook_used": "V2.1 object accusation",
+        "close_used": "C2 Casual dismount",
+        "audience_temp": "cold",
+        "primary_emotion": "anger at marketing",
+        "product_name": "40+ Label Scan guide",
+        "product_category": "digital supermarket label-scan guide",
+        "core_mechanism": "compare protein grams against added sugar, fiber, and real serving size before trusting the front label",
+        "common_problem": "buying protein bars as a healthy snack but getting cravings again fast",
+        "hidden_cause": "protein branding can hide candy-bar sugar math, low fiber, and a serving that does not keep you full",
+        "failed_alternative": "trusting the word protein on the front of the wrapper",
+        "honest_timeline": "the first win is better cart decisions on the next grocery run, not an overnight body change",
+        "usage_ritual": "flip the bar and check protein, added sugar, fiber, and serving size before it enters the cart"
+      },
+      "forbidden_objects": "orange, citrus fruit, oatmeal packets, salad dressing, salad greens, juice bottles, ebook covers, Claire-branded products, creator-branded packaging, generic brand-free packaging, fake supplement jars, fake medical props, fake anatomy scenes, grotesque body imagery, extra CTA cards, subtitles, social media UI, text overlays generated inside the scene",
+      "hook": "This protein bar is dessert wearing a gym badge.",
+      "hook_visual": "Single continuous supermarket snack aisle selfie shot. Claire rushes into frame mid-motion and holds a real protein bar wrapper close to the front-facing iPhone lens, similar to RXBAR, Quest, or KIND packaging, while the snack shelves are visible behind her. Her expression is skeptical and urgent. The wrapper is stable, physically gripped, and never Claire-branded.",
+      "segments": [
+        {
+          "id": "problem_front_label_betrayal",
+          "duration_seconds": 7,
+          "visual": "Single continuous aisle close-up. Claire flips the same real protein bar from the front logo side to the nutrition panel side and taps near the added sugar line with one finger. The product remains a real supermarket snack wrapper, not a fake brand.",
+          "dialogue": "The front trains you to see protein first. But the back is where the snack tells on itself."
+        },
+        {
+          "id": "failed_fix_protein_word",
+          "duration_seconds": 7,
+          "visual": "Single continuous shopping cart shot. Claire drops the protein bar into the cart, freezes, then pulls it back out with a tiny annoyed laugh, like she caught the trick before checkout.",
+          "dialogue": "And buying the protein version does not automatically fix it. Sometimes you just paid extra for candy-bar math."
+        },
+        {
+          "id": "mechanism_label_scan",
+          "duration_seconds": 7,
+          "visual": "Single continuous over-shoulder label check. Claire holds the bar beside her phone checklist for one second, then looks back into the camera. The phone screen is not readable and the bar stays physically stable.",
+          "dialogue": "The scan is simple: protein, added sugar, fiber, real serving. I use my 40 plus Label Scan because it keeps that check brutal and fast."
+        },
+        {
+          "id": "honesty_realistic_win",
+          "duration_seconds": 7,
+          "visual": "Single continuous closest selfie frame. Claire lowers the bar out of frame, leans closer, and speaks directly with a protective tone. Snack shelves remain behind her, no new products appear.",
+          "dialogue": "Real talk, this does not make every snack perfect. The first win is that the front of the wrapper stops making the decision for you."
+        }
+      ],
+      "cta": "Most people never flip the bar. Now you do.",
+      "cta_visual": "Single continuous final aisle shot. Claire places the protein bar back on the shelf, gives the camera a small half-smile, then walks the cart away. No text card, no fake app UI, no spoken comment instruction."
+    }
+  ]
+}
