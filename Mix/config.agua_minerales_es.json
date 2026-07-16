@@ -1,0 +1,93 @@
+{
+  "name": "Mix Agua Minerales ES",
+  "concept_id": "mix_agua_minerales_es_v01",
+  "google_omni_flash": {
+    "model": "gemini-omni-flash-preview",
+    "project_id": "ai-content-factory-501821",
+    "location": "global",
+    "access_token_env": "GOOGLE_OAUTH_ACCESS_TOKEN",
+    "output_gcs_uri": "gs://ai-content-factory-501821-omni-outputs/mix/agua_minerales_es_v01/provider/",
+    "poll_seconds": 10,
+    "timeout_seconds": 1200,
+    "retries": 2,
+    "background": true
+  },
+  "defaults": {
+    "aspect_ratio": "9:16",
+    "duration_seconds": 5,
+    "resolution": "720p"
+  },
+  "master_prompt": "Create ONE vertical 9:16 Spanish short-form video clip with native spoken audio. This is a serious, high-retention cinematic UGC explainer about bottled water, minerals, and electrolytes. Each generated clip is one leaf scene only: one location, one camera setup, one action, one exact spoken line. Do not create a montage inside a clip. Use hard documentary realism, not an ad. Keep the same on-camera presenter across presenter scenes: Latino or Mediterranean-looking man, early 30s, short dark hair, clean-shaven, expressive but serious face, black T-shirt, warm dim background, direct eye contact. B-roll scenes should not show the presenter unless explicitly requested. Use Spanish pronunciation natural to Latin America. No subtitles, no social media UI, no watermarks. If screen text is requested, make it short, clean, large, correctly spelled Spanish. Avoid medical certainty and avoid saying all bottled water is bad. The tone is serious, confident, intriguing, and slightly accusatory toward marketing, not fearmongering.",
+  "hooks": [
+    {
+      "id": "hook_tomar_mas_agua",
+      "title": "Hook tomar mas agua",
+      "duration_seconds": 3,
+      "prompt": "Primer plano del presentador en fondo oscuro cálido, mirada directa a cámara, levanta un dedo como si estuviera revelando algo incómodo. Luz cálida, fondo con dos lámparas suaves desenfocadas. Native dialogue: La industria te convenció de tomar más agua..."
+    }
+  ],
+  "mains": [
+    {
+      "id": "mineral_storyboard_main",
+      "title": "Mineral Storyboard Main",
+      "prompt": "Follow the attached storyboard logic as independent hard-cut scenes. Keep the tone serious and investigative. Do not include captions unless the segment explicitly asks for short screen text.",
+      "segments": [
+        {
+          "id": "botellas_en_linea",
+          "duration_seconds": 3,
+          "prompt": "Plano detalle frío y azulado de muchas botellas de agua comercial alineadas sobre una banda o estante, con gotas de condensación. No personas. Movimiento lento de cámara lateral, muy corto. Native dialogue: ...pero casi nadie habla de lo que le quitaron."
+        },
+        {
+          "id": "los_minerales",
+          "duration_seconds": 3,
+          "prompt": "Plano detalle dramático de una botella de agua transparente con burbujas y gotas, fondo oscuro de alto contraste. Añade texto grande amarillo en pantalla, centrado abajo: LOS MINERALES. Native dialogue: Los minerales."
+        },
+        {
+          "id": "vaso_agua_no_igual",
+          "duration_seconds": 4,
+          "prompt": "Plano medio de un vaso transparente mientras se sirve agua lentamente sobre una mesa gris simple. Luz neutra natural, realista. No personas. Native dialogue: No toda el agua hidrata igual."
+        },
+        {
+          "id": "comparativo_minerales",
+          "duration_seconds": 5,
+          "prompt": "Plano fijo comparativo: dos vasos de agua sobre fondo oscuro limpio. Izquierda agua comercial, derecha agua con minerales. Usa texto mínimo y limpio: Comercial: minerales bajos. Con minerales: electrolitos esenciales. Native dialogue: La mayoría tiene minerales muy bajos. Tu cuerpo necesita electrolitos esenciales."
+        },
+        {
+          "id": "vuelve_a_camara",
+          "duration_seconds": 5,
+          "prompt": "Primer plano del mismo presentador del hook, fondo oscuro cálido, mirada directa, tono convencido. Levanta un dedo y luego señala hacia un vaso fuera de cuadro. Native dialogue: Muchas marcas prácticamente eliminan la mayor parte de sus minerales."
+        },
+        {
+          "id": "bebidas_deportivas",
+          "duration_seconds": 5,
+          "prompt": "Plano detalle brillante de bebidas deportivas de colores en un anaquel o mesa negra: azul, naranja, rojo y verde. No marcas legibles. Luz brillante de producto pero realista. Native dialogue: Después te venden bebidas deportivas para compensarlo."
+        },
+        {
+          "id": "notas_el_negocio",
+          "duration_seconds": 4,
+          "prompt": "Primer plano del mismo presentador, cálido y oscuro. Hace una pequeña sonrisa irónica y gesto de mano hacia cámara. Añade texto amarillo corto en pantalla: ¿Notas el negocio? Native dialogue: ¿Notas el negocio?"
+        },
+        {
+          "id": "mineralizar_mi_agua",
+          "duration_seconds": 8,
+          "prompt": "Mix en una sola escena continua de cocina oscura cálida: mano agrega una pizca pequeña de sal mineral o electrolitos a un vaso de agua, luego el mismo presentador sostiene el vaso y mira a cámara. Producto sutil, nada de venta directa, sin marcas. Native dialogue: Yo empecé a mineralizar mi agua. La diferencia no fue tomar más agua... fue dejar de tomar agua sin minerales."
+        }
+      ]
+    }
+  ],
+  "ctas": [
+    {
+      "id": "cta_comenta_sal",
+      "title": "CTA comenta SAL",
+      "duration_seconds": 5,
+      "prompt": "Primer plano del mismo presentador con fondo cálido oscuro. Señala suavemente hacia la cámara, tono cercano y directo, sin pantalla de venta. Añade texto blanco simple en pantalla: Comenta SAL. Native dialogue: Comenta sal y te mando exactamente la que estoy usando."
+    }
+  ],
+  "variants": {
+    "count": 1,
+    "min_total_seconds": 40,
+    "max_total_seconds": 48,
+    "seed": 20260715,
+    "stitch_leaf_segments": true
+  }
+}
