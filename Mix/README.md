@@ -10,6 +10,27 @@ storyboard -> separate 3-10s leaf clips -> hard-cut FFmpeg assembly -> final vid
 
 Use this folder when the video is driven by a storyboard, presenter+B-roll mix, or a cinematic explainer format instead of a persistent avatar.
 
+## V3 Composed Module
+
+`Mix/v3` adds a composed execution layer for dynamic physical subjects. It does not replace the working Omni stack. It prepares subject-aware first-frame image prompts and image-QA prompts, then can optionally hand off to the current Omni video executor.
+
+Optional fields:
+
+- `subject_label`: short noun phrase, defaults to `product`
+- `subject_placement_hint`: natural placement clause, defaults to `naturally held in hand or placed on surface`
+
+Dry-run the V3 composition:
+
+```powershell
+python Mix\v3\pipeline_v3.py --config Mix\config.v3.dynamic_subject.example.json --out Mix\runs\v3_dynamic_subject_dry_run
+```
+
+Run the existing Omni video executor after V3 composition:
+
+```powershell
+python Mix\v3\pipeline_v3.py --config Mix\config.v3.dynamic_subject.example.json --out Mix\runs\v3_dynamic_subject_live --execute-video --env-ssl-no-verify
+```
+
 ## Current Test
 
 - Concept: bottled water/minerals controversy

@@ -1,0 +1,18 @@
+{
+  "schema_version": 3,
+  "name": "Mix V3 Dynamic Subject Example",
+  "source_config": "config.agua_minerales_es.json",
+  "subject_label": "sal mineral",
+  "subject_placement_hint": "pinched between fingers, resting on a spoon, or dissolving naturally in a glass of water",
+  "simulated_qa_failure": {
+    "product_placement": 5,
+    "hand_realism": 8,
+    "face_quality": 9,
+    "background_realism": 8,
+    "ugc_authenticity": 8,
+    "status": "FAIL",
+    "issues": [
+      "subject appears detached from the fingers"
+    ]
+  }
+}
