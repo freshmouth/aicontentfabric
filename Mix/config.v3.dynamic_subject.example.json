@@ -4,6 +4,8 @@
   "source_config": "config.agua_minerales_es.json",
   "subject_label": "sal mineral",
   "subject_placement_hint": "pinched between fingers, resting on a spoon, or dissolving naturally in a glass of water",
+  "cloudinary_reference_folder": "catalog/sal-celtica/ugc-refs",
+  "cloudinary_max_reference_images": 3,
   "simulated_qa_failure": {
     "product_placement": 5,
     "hand_realism": 8,

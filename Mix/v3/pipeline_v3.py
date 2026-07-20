@@ -11,10 +11,12 @@ from typing import Any
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from Mix.v3.cloudinary_refs import DEFAULT_REFERENCE_FOLDER, load_cloudinary_references
     from Mix.v3.image_prompting import build_image_prompt
     from Mix.v3.image_qa import build_fixed_prompt, build_qa_prompt
     from Mix.v3.subject import SubjectDescriptor
 else:
+    from .cloudinary_refs import DEFAULT_REFERENCE_FOLDER, load_cloudinary_references
     from .image_prompting import build_image_prompt
     from .image_qa import build_fixed_prompt, build_qa_prompt
     from .subject import SubjectDescriptor
@@ -29,6 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default="", help="Output directory. Defaults to Mix/runs/v3_YYYYMMDD_HHMMSS.")
     parser.add_argument("--generate-first-image", action="store_true", help="Generate only one first-frame image from the V3 image prompt.")
     parser.add_argument("--first-image-index", type=int, default=1, help="1-based scene index for --generate-first-image.")
+    parser.add_argument("--with-cloudinary-refs", action="store_true", help="Attach Cloudinary UGC reference images to first-image generation.")
     parser.add_argument("--execute-video", action="store_true", help="After v3 composition, run the existing Omni stack.")
     parser.add_argument("--env-ssl-no-verify", action="store_true", help="Set GOOGLE_OMNI_SSL_NO_VERIFY=true for Omni execution.")
     args = parser.parse_args(argv)
@@ -36,6 +39,8 @@ def main(argv: list[str] | None = None) -> int:
     load_env(ROOT / ".env.local")
     config_path = Path(args.config).resolve()
     config = read_json(config_path)
+    if config.get("cloudinary_env_file"):
+        load_env(resolve_path(config_path.parent, str(config["cloudinary_env_file"])))
     out_dir = Path(args.out).resolve() if args.out else default_out_dir()
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -93,7 +98,13 @@ def main(argv: list[str] | None = None) -> int:
     }
 
     if args.generate_first_image:
-        first_image = generate_first_image(records, args.first_image_index, out_dir)
+        first_image = generate_first_image(
+            records,
+            args.first_image_index,
+            out_dir,
+            config=config,
+            with_cloudinary_refs=args.with_cloudinary_refs,
+        )
         manifest["generated_first_image"] = str(first_image)
 
     write_json(out_dir / "v3_execution_manifest.json", manifest)
@@ -126,7 +137,14 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def generate_first_image(records: list[dict[str, Any]], index: int, out_dir: Path) -> Path:
+def generate_first_image(
+    records: list[dict[str, Any]],
+    index: int,
+    out_dir: Path,
+    *,
+    config: dict[str, Any],
+    with_cloudinary_refs: bool,
+) -> Path:
     if not 1 <= index <= len(records):
         raise SystemExit(f"--first-image-index must be between 1 and {len(records)}.")
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
@@ -138,12 +156,26 @@ def generate_first_image(records: list[dict[str, Any]], index: int, out_dir: Pat
     output_path = out_dir / "first_images" / f"{index:02d}_{record['scene_id']}.png"
     prompt_path = output_path.with_suffix(".prompt.txt")
     prompt = str(record["image_prompt"])
+    reference_images: list[Path] = []
+    if with_cloudinary_refs:
+        folder = str(config.get("cloudinary_reference_folder") or DEFAULT_REFERENCE_FOLDER).strip()
+        count = int(config.get("cloudinary_max_reference_images") or 3)
+        reference_images = load_cloudinary_references(
+            folder=folder,
+            count=count,
+            out_dir=out_dir / "cloudinary_refs" / f"{index:02d}_{record['scene_id']}",
+        )
+        prompt += (
+            "\n\nVisual quality references are attached. Use them only for aesthetic quality, UGC realism, "
+            "lighting, framing, hand/object naturalness, and authenticity. Do not copy identities, logos, "
+            "captions, or unrelated objects from the references."
+        )
     prompt_path.parent.mkdir(parents=True, exist_ok=True)
     prompt_path.write_text(prompt, encoding="utf-8")
     generate_openai_first_frame(
         prompt=prompt,
         output_path=output_path,
-        reference_images=[],
+        reference_images=reference_images,
         api_key=api_key,
         settings={
             "model": "gpt-image-2",
