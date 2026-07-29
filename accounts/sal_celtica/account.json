@@ -1,0 +1,13 @@
+{
+  "account_id": "sal_celtica",
+  "display_name": "Sal Celtica",
+  "status": "active",
+  "pipeline": "v3",
+  "description": "Independent account for Celtic salt content. No Claire, Beyond The Label, or HyperDash assets or publishing credentials.",
+  "paths": {
+    "prompts": "accounts/sal_celtica/prompts",
+    "content_library": "accounts/sal_celtica/content_library",
+    "runs": "accounts/sal_celtica/runs",
+    "logs": "accounts/sal_celtica/logs"
+  }
+}

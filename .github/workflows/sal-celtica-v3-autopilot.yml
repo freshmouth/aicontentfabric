@@ -1,0 +1,99 @@
+name: Sal Celtica V3 Autopilot
+
+on:
+  schedule:
+    # Runs daily at 10:30 Mexico City time; the Python gate only proceeds every 4 days starting 2026-08-03.
+    - cron: "30 16 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Run even when today is not on the 4-day cadence"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      concept_id:
+        description: "Optional Sal Celtica concept_id override"
+        required: false
+        default: ""
+      dry_run:
+        description: "Generate video but dry-run Metricool publishing"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+concurrency:
+  group: sal-celtica-v3-autopilot
+  cancel-in-progress: false
+
+jobs:
+  generate-and-schedule:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+      SAL_CELTICA_METRICOOL_API_TOKEN: ${{ secrets.SAL_CELTICA_METRICOOL_API_TOKEN }}
+      SAL_CELTICA_METRICOOL_USER_ID: ${{ secrets.SAL_CELTICA_METRICOOL_USER_ID }}
+      SAL_CELTICA_METRICOOL_BLOG_ID: ${{ secrets.SAL_CELTICA_METRICOOL_BLOG_ID }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install google-auth requests tzdata
+
+      - name: Run Sal Celtica V3 autopilot
+        shell: bash
+        run: |
+          ARGS=()
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force }}" == "true" ]]; then
+            ARGS+=(--force)
+          fi
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.concept_id }}" ]]; then
+            ARGS+=(--concept-id "${{ inputs.concept_id }}")
+          fi
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.dry_run }}" == "true" ]]; then
+            ARGS+=(--dry-run)
+          fi
+          python tools/sal_celtica_v3_autopilot.py "${ARGS[@]}"
+
+      - name: Upload run logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sal-celtica-v3-autopilot-run
+          path: |
+            accounts/sal_celtica/runs/autopilot_*/autopilot_plan.json
+            accounts/sal_celtica/runs/autopilot_*/autopilot_result.json
+            accounts/sal_celtica/runs/autopilot_*/omni_stdout.txt
+            accounts/sal_celtica/runs/autopilot_*/omni_stderr.txt
+            accounts/sal_celtica/runs/autopilot_*/metricool_stdout.txt
+            accounts/sal_celtica/runs/autopilot_*/metricool_stderr.txt
+            accounts/sal_celtica/runs/autopilot_*/publish_ready/*.postprocess.json
+            accounts/sal_celtica/runs/autopilot_*/publish_ready/*.ffmpeg_log.txt
+          if-no-files-found: ignore

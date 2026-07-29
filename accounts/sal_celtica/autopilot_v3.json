@@ -1,0 +1,32 @@
+{
+  "account_id": "sal_celtica",
+  "pipeline": "v3",
+  "enabled": true,
+  "timezone": "America/Mexico_City",
+  "start_date": "2026-08-03",
+  "interval_days": 4,
+  "publish_time": "12:00",
+  "platforms": "instagram,facebook",
+  "postprocess_preset": "ugc_soft_30fps",
+  "output_gcs_uri_prefix": "gs://ai-content-factory-501821-omni-outputs/accounts/sal_celtica/autopilot",
+  "first_frame": {
+    "enabled": true,
+    "with_cloudinary_refs": true,
+    "openai_model": "gpt-image-2",
+    "openai_size": "720x1280",
+    "openai_quality": "medium",
+    "timeout_seconds": 240
+  },
+  "concepts": [
+    {
+      "concept_id": "common_salt_stop",
+      "v3_config": "config.v3.common_salt_stop.json",
+      "caption": "Hay algo que casi nadie revisa cuando habla de comer menos sal: el tipo de sal que esta usando. La diferencia no esta en sonar mas saludable, esta en lo que queda despues de refinarla. Comenta SAL y te mando la que yo uso."
+    },
+    {
+      "concept_id": "midnight_mineral_cravings",
+      "v3_config": "config.v3.midnight_mineral_cravings.json",
+      "caption": "Si los antojos te pegan tarde, tal vez no es falta de fuerza de voluntad. Hay una senal que mucha gente confunde con hambre y casi nadie conecta con minerales. Comenta SAL y te mando la que yo uso."
+    }
+  ]
+}

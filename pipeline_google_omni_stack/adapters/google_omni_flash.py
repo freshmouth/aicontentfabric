@@ -287,6 +287,9 @@ def get_access_token(env_name: str) -> str:
     token = os.environ.get(env_name, "").strip()
     if token:
         return token
+    service_account_token = get_service_account_access_token()
+    if service_account_token:
+        return service_account_token
     metadata_request = urllib.request.Request(
         "http://metadata.google.internal/computeMetadata/v1/instance/"
         "service-accounts/default/token",
@@ -317,8 +320,39 @@ def get_access_token(env_name: str) -> str:
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
     raise GoogleOmniError(
-        f"Missing Google auth token. Set {env_name} or run `gcloud auth application-default login`."
+        f"Missing Google auth token. Set {env_name}, GOOGLE_SERVICE_ACCOUNT_JSON, "
+        "GOOGLE_APPLICATION_CREDENTIALS, or run `gcloud auth application-default login`."
     )
+
+
+def get_service_account_access_token() -> str:
+    raw_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
+    credentials_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
+    if not raw_json and not credentials_path:
+        return ""
+    try:
+        from google.auth.transport.requests import Request
+        from google.oauth2 import service_account
+    except ImportError as exc:
+        raise GoogleOmniError(
+            "GOOGLE_SERVICE_ACCOUNT_JSON/GOOGLE_APPLICATION_CREDENTIALS requires google-auth and requests. "
+            "Install them with `python -m pip install google-auth requests`."
+        ) from exc
+
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+    try:
+        if raw_json:
+            try:
+                info = json.loads(raw_json)
+            except json.JSONDecodeError:
+                info = json.loads(base64.b64decode(raw_json).decode("utf-8"))
+            credentials = service_account.Credentials.from_service_account_info(info, scopes=scopes)
+        else:
+            credentials = service_account.Credentials.from_service_account_file(credentials_path, scopes=scopes)
+        credentials.refresh(Request())
+    except Exception as exc:
+        raise GoogleOmniError(f"Failed to mint Google service account access token: {exc}") from exc
+    return str(credentials.token or "").strip()
 
 
 def post_json(url: str, payload: dict[str, Any], *, token: str) -> dict[str, Any]:
