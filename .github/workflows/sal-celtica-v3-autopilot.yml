@@ -1,9 +1,6 @@
 name: Sal Celtica V3 Autopilot
 
 on:
-  schedule:
-    # Runs daily at 10:30 Mexico City time; the Python gate only proceeds every 4 days starting 2026-08-03.
-    - cron: "30 16 * * *"
   workflow_dispatch:
     inputs:
       force:

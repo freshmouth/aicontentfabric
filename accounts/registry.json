@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "default_timezone": "America/Mexico_City",
+  "accounts": [
+    {
+      "account_id": "sal_celtica",
+      "enabled": true,
+      "pipeline": "v3",
+      "autopilot_config": "accounts/sal_celtica/autopilot_v3.json"
+    },
+    {
+      "account_id": "beyond_the_label",
+      "enabled": false,
+      "pipeline": "v3",
+      "autopilot_config": "accounts/beyond_the_label/autopilot_v3.json"
+    },
+    {
+      "account_id": "hyperdash",
+      "enabled": false,
+      "pipeline": "v3",
+      "autopilot_config": "accounts/hyperdash/autopilot_v3.json"
+    },
+    {
+      "account_id": "claire",
+      "enabled": false,
+      "pipeline": "v3",
+      "autopilot_config": "accounts/claire/autopilot_v3.json"
+    },
+    {
+      "account_id": "sarah_cole",
+      "enabled": false,
+      "pipeline": "v3",
+      "autopilot_config": "accounts/sarah_cole/autopilot_v3.json"
+    },
+    {
+      "account_id": "speliers",
+      "enabled": false,
+      "pipeline": "v3",
+      "autopilot_config": "accounts/speliers/autopilot_v3.json"
+    }
+  ]
+}

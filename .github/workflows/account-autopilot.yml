@@ -1,0 +1,120 @@
+name: Multi-Account V3 Autopilot
+
+on:
+  schedule:
+    # Runs daily at 10:30 Mexico City time. Each account decides whether it is due.
+    - cron: "30 16 * * *"
+  workflow_dispatch:
+    inputs:
+      account:
+        description: "Optional single account id. Empty means all due accounts."
+        required: false
+        default: ""
+      force:
+        description: "Run even when the account is not due"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      dry_run:
+        description: "Generate video but dry-run Metricool publishing"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+concurrency:
+  group: multi-account-v3-autopilot
+  cancel-in-progress: false
+
+jobs:
+  generate-and-schedule:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+      ACCOUNT_PUBLISH_SECRETS_JSON: ${{ secrets.ACCOUNT_PUBLISH_SECRETS_JSON }}
+      SAL_CELTICA_METRICOOL_API_TOKEN: ${{ secrets.SAL_CELTICA_METRICOOL_API_TOKEN }}
+      SAL_CELTICA_METRICOOL_USER_ID: ${{ secrets.SAL_CELTICA_METRICOOL_USER_ID }}
+      SAL_CELTICA_METRICOOL_BLOG_ID: ${{ secrets.SAL_CELTICA_METRICOOL_BLOG_ID }}
+      BEYOND_THE_LABEL_METRICOOL_API_TOKEN: ${{ secrets.BEYOND_THE_LABEL_METRICOOL_API_TOKEN }}
+      BEYOND_THE_LABEL_METRICOOL_USER_ID: ${{ secrets.BEYOND_THE_LABEL_METRICOOL_USER_ID }}
+      BEYOND_THE_LABEL_METRICOOL_BLOG_ID: ${{ secrets.BEYOND_THE_LABEL_METRICOOL_BLOG_ID }}
+      HYPERDASH_METRICOOL_API_TOKEN: ${{ secrets.HYPERDASH_METRICOOL_API_TOKEN }}
+      HYPERDASH_METRICOOL_USER_ID: ${{ secrets.HYPERDASH_METRICOOL_USER_ID }}
+      HYPERDASH_METRICOOL_BLOG_ID: ${{ secrets.HYPERDASH_METRICOOL_BLOG_ID }}
+      CLAIRE_METRICOOL_API_TOKEN: ${{ secrets.CLAIRE_METRICOOL_API_TOKEN }}
+      CLAIRE_METRICOOL_USER_ID: ${{ secrets.CLAIRE_METRICOOL_USER_ID }}
+      CLAIRE_METRICOOL_BLOG_ID: ${{ secrets.CLAIRE_METRICOOL_BLOG_ID }}
+      SARAH_COLE_METRICOOL_API_TOKEN: ${{ secrets.SARAH_COLE_METRICOOL_API_TOKEN }}
+      SARAH_COLE_METRICOOL_USER_ID: ${{ secrets.SARAH_COLE_METRICOOL_USER_ID }}
+      SARAH_COLE_METRICOOL_BLOG_ID: ${{ secrets.SARAH_COLE_METRICOOL_BLOG_ID }}
+      SPELIERS_METRICOOL_API_TOKEN: ${{ secrets.SPELIERS_METRICOOL_API_TOKEN }}
+      SPELIERS_METRICOOL_USER_ID: ${{ secrets.SPELIERS_METRICOOL_USER_ID }}
+      SPELIERS_METRICOOL_BLOG_ID: ${{ secrets.SPELIERS_METRICOOL_BLOG_ID }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install google-auth requests tzdata
+
+      - name: Run account autopilot
+        shell: bash
+        run: |
+          ARGS=()
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.account }}" ]]; then
+            ARGS+=(--account "${{ inputs.account }}")
+          else
+            ARGS+=(--all-due)
+          fi
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force }}" == "true" ]]; then
+            ARGS+=(--force)
+          fi
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.dry_run }}" == "true" ]]; then
+            ARGS+=(--dry-run)
+          fi
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            ARGS+=(--continue-on-error)
+          fi
+          python tools/account_autopilot.py "${ARGS[@]}"
+
+      - name: Upload run logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: account-autopilot-run
+          path: |
+            accounts/*/runs/autopilot_*/autopilot_plan.json
+            accounts/*/runs/autopilot_*/autopilot_result.json
+            accounts/*/runs/autopilot_*/omni_stdout.txt
+            accounts/*/runs/autopilot_*/omni_stderr.txt
+            accounts/*/runs/autopilot_*/metricool_stdout.txt
+            accounts/*/runs/autopilot_*/metricool_stderr.txt
+            accounts/*/runs/autopilot_*/publish_ready/*.postprocess.json
+            accounts/*/runs/autopilot_*/publish_ready/*.ffmpeg_log.txt
+          if-no-files-found: ignore
