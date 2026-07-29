@@ -1,0 +1,82 @@
+{
+  "name": "Sal Celtica - Antojos de Medianoche V3",
+  "concept_id": "sal_celtica_midnight_mineral_cravings_01",
+  "account_id": "sal_celtica",
+  "language": "es",
+  "defaults": {
+    "aspect_ratio": "9:16",
+    "duration_seconds": 5,
+    "resolution": "720p"
+  },
+  "master_prompt": "Create ONE vertical 9:16 Spanish short-form UGC clip with native spoken audio for Sal Celtica. Each clip is one leaf scene only: one location, one camera setup, one visual idea, one exact spoken line. Tone: urgent, natural, relatable, midnight-kitchen realism, not polished advertising. Keep claims framed as educational/marketing narrative, not medical advice. No miracle cures, no disease claims, no fake doctor language, no social UI, no captions baked into generated video.",
+  "hooks": [
+    {
+      "id": "hook_mineral_thirst",
+      "title": "Tu cuerpo tiene sed de minerales",
+      "duration_seconds": 4,
+      "subject_label": "midnight kitchen snack craving and off-white flaky sea salt ritual, no product packaging",
+      "subject_placement_hint": "person opening the fridge or pantry at night with a tiny dish of off-white translucent flaky sea salt crystals visible nearby as the relevant mineral alternative; no product packaging or readable brands",
+      "script": "Tu cuerpo no tiene hambre, tiene sed de minerales.",
+      "prompt": "First-frame thumbnail for a Spanish UGC reel: a tired person in a lived-in kitchen at midnight opens the fridge and reaches for random snacks, while a tiny ceramic dish of off-white translucent flaky sea salt crystals sits on the counter as the contrast object. The salt must match the attached grain reference: irregular fractured flakes, semi-translucent off-white crystals, dry coarse flakes, not gray gravel, not round pebbles. Phone-camera realism, slightly messy kitchen, fridge light spilling into the dark room, sleepy expression, snack wrappers or leftovers in the background but no readable brands. The frame should instantly communicate late-night cravings and mineral thirst. Do not show any product packaging, logos, labels, or fake branded containers. Native dialogue: Tu cuerpo no tiene hambre, tiene sed de minerales."
+    }
+  ],
+  "mains": [
+    {
+      "id": "mineral_cravings_main",
+      "title": "Mineral cravings mechanism",
+      "prompt": "Each segment is one direct visual idea in a realistic Spanish UGC kitchen style.",
+      "segments": [
+        {
+          "id": "snacking_loop",
+          "duration_seconds": 5,
+          "subject_label": "person snacking in kitchen at night",
+          "subject_placement_hint": "person standing by the counter with several small snack bites, tired and unsatisfied",
+          "script": "Pasas todo el día picando comida porque tu cuerpo sigue buscando algo.",
+          "prompt": "Night kitchen UGC shot: person standing at counter eating tiny snack bites from different containers, tired and unsatisfied, fridge light and warm counter lamp, real messy home. No readable brands. Native dialogue: Pasas todo el día picando comida porque tu cuerpo sigue buscando algo."
+        },
+        {
+          "id": "common_salt_contrast",
+          "duration_seconds": 6,
+          "subject_label": "common table salt versus mineral salt contrast",
+          "subject_placement_hint": "plain fine white table salt next to off-white translucent flaky sea salt crystals on a small plate",
+          "script": "La sal común no cuenta la misma historia que una sal mineral sin refinar.",
+          "prompt": "Close macro shot: fine white table salt on one side of a small ceramic plate and off-white translucent flaky sea salt crystals on the other. The flaky crystals must match the attached grain reference: irregular fractured flakes, semi-translucent off-white pieces, dry coarse crystals, not gray gravel, not round pebbles. Warm kitchen light, no labels, no text, no fake packaging. Native dialogue: La sal común no cuenta la misma historia que una sal mineral sin refinar."
+        },
+        {
+          "id": "crystal_water_ritual",
+          "duration_seconds": 5,
+          "subject_label": "single flaky sea salt crystal on fingertip beside water",
+          "subject_placement_hint": "close-up of clean fingers holding one off-white translucent flaky sea salt crystal beside a small glass of water, realistic and tasteful",
+          "script": "Por eso algunas personas empiezan con un cristal pequeño y agua.",
+          "prompt": "Tasteful close-up UGC shot: clean fingers hold one off-white translucent flaky sea salt crystal on a fingertip beside a small glass of water on the kitchen counter, face not visible, natural skin texture, realistic hand, not medical, not grotesque. The salt crystal must match the attached grain reference: irregular fractured flake, semi-translucent off-white, not gray, not a round pebble. Native dialogue: Por eso algunas personas empiezan con un cristal pequeño y agua."
+        },
+        {
+          "id": "eighty_two_minerals",
+          "duration_seconds": 6,
+          "subject_label": "off-white flaky sea salt crystals and pantry-snack contrast, no product packaging",
+          "subject_placement_hint": "off-white translucent flaky sea salt crystals on an oak counter beside ordinary pantry snacks; no product packaging, no logos, no readable brands",
+          "script": "La idea es simple: minerales antes de seguir abriendo la alacena.",
+          "prompt": "Off-white translucent flaky sea salt crystals on an oak kitchen counter beside ordinary pantry snacks, warm realistic UGC lighting, hand reaching past snack containers toward the salt. The salt must match the attached grain reference: irregular fractured flakes, semi-translucent off-white pieces, dry coarse crystals, not gray gravel, not round pebbles. Do not show product packaging, logos, labels, or fake branded containers. Native dialogue: La idea es simple: minerales antes de seguir abriendo la alacena."
+        }
+      ]
+    }
+  ],
+  "ctas": [
+    {
+      "id": "cta_comment_sal",
+      "title": "Comenta SAL",
+      "duration_seconds": 5,
+      "subject_label": "midnight flaky sea salt ritual, no product packaging",
+      "subject_placement_hint": "one off-white translucent flaky sea salt crystal on fingertip in a calm midnight kitchen; no product packaging, no logos, no readable brands",
+      "script": "Comenta SAL y te mando la guía rápida que estoy usando.",
+      "prompt": "Final UGC frame: one off-white translucent flaky sea salt crystal on fingertip in foreground, small dish of matching flaky sea salt on the counter, calm midnight kitchen. The salt must match the attached grain reference: irregular fractured flakes, semi-translucent off-white pieces, dry coarse crystals, not gray gravel, not round pebbles. Do not show product packaging, logos, labels, or fake branded containers. Native dialogue: Comenta SAL y te mando la guía rápida que estoy usando."
+    }
+  ],
+  "variants": {
+    "count": 1,
+    "min_total_seconds": 28,
+    "max_total_seconds": 35,
+    "seed": 20260727,
+    "stitch_leaf_segments": true
+  }
+}

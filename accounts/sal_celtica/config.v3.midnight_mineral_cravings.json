@@ -1,0 +1,11 @@
+{
+  "schema_version": 3,
+  "name": "Sal Celtica V3 - Antojos de Medianoche",
+  "account_id": "sal_celtica",
+  "source_config": "config.midnight_mineral_cravings_v3.json",
+  "subject_label": "midnight kitchen cravings and off-white flaky sea salt ritual, no product packaging",
+  "subject_placement_hint": "person opening the fridge or pantry at night with off-white translucent flaky sea salt crystals visible nearby as the relevant mineral alternative; use the local salt grain reference for crystal shape and texture; no product packaging or readable brands",
+  "cloudinary_reference_folder": "catalog/sal-celtica/products",
+  "cloudinary_cached_reference_dir": "references/salt_grain",
+  "cloudinary_max_reference_images": 1
+}

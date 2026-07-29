@@ -1,0 +1,26 @@
+{
+  "account_id": "hyperdash",
+  "display_name": "HyperDash",
+  "publisher": "metricool",
+  "require_video_manifest": false,
+  "metricool": {
+    "base_url": "https://app.metricool.com/api",
+    "user_id": "HYPERDASH_METRICOOL_USER_ID",
+    "blog_id": "HYPERDASH_METRICOOL_BLOG_ID",
+    "api_token_env": "HYPERDASH_METRICOOL_API_TOKEN",
+    "timezone": "America/Mexico_City",
+    "networks": {
+      "instagram": "instagram",
+      "facebook": "facebook"
+    },
+    "post_types": {
+      "instagram": "REEL",
+      "facebook": "REEL"
+    },
+    "auto_publish": true,
+    "draft": false,
+    "show_reel_on_feed": true,
+    "save_external_media_files": true,
+    "video_cover_milliseconds": 0
+  }
+}

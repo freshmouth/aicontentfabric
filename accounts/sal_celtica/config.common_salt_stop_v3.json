@@ -1,0 +1,90 @@
+{
+  "name": "Sal Celtica - Deja de usar sal común V3",
+  "concept_id": "sal_celtica_common_salt_stop_01",
+  "account_id": "sal_celtica",
+  "language": "es",
+  "defaults": {
+    "aspect_ratio": "9:16",
+    "duration_seconds": 5,
+    "resolution": "720p"
+  },
+  "master_prompt": "Create ONE vertical 9:16 Spanish short-form UGC clip with native spoken audio for Sal Celtica. Each clip is one leaf scene only: one location, one camera setup, one visual idea, one exact spoken line. Tone: urgent, controversial, native TikTok, fast-paced, realistic kitchen UGC, not polished advertising. Keep claims framed as educational/marketing narrative, not medical advice. No miracle cures, no disease claims, no fake doctor language, no social UI, no captions baked into generated video.",
+  "hooks": [
+    {
+      "id": "scroll_stopper_common_salt",
+      "title": "Deja de usar sal común",
+      "duration_seconds": 4,
+      "subject_label": "shocked UGC kitchen creator comparing plain table salt and flaky sea salt",
+      "subject_placement_hint": "a surprised person in a lived-in kitchen holds a spoon or small plate of plain fine white table salt close to camera while a bowl of off-white translucent flaky sea salt sits nearby; no product packaging, no logos, no readable brands",
+      "script": "Deja de usar sal común si no quieres seguir con antojos de medianoche.",
+      "prompt": "Scroll-stopper first-frame thumbnail for a Spanish UGC reel: a surprised everyday person in a dim lived-in kitchen holds plain fine white table salt close to the phone camera with a worried 'wait, what?' expression. A small bowl of off-white translucent flaky sea salt is visible nearby as the contrast object. The flaky salt must match the attached grain reference: irregular fractured flakes, semi-translucent off-white crystals, dry coarse flakes, not gray gravel, not round pebbles. Native TikTok realism, handheld iPhone frame, imperfect kitchen lighting, dramatic but believable midnight snack tension. No product packaging, no logos, no readable labels, no text overlays, no subtitles baked into the image. Native dialogue: Deja de usar sal común si no quieres seguir con antojos de medianoche."
+    }
+  ],
+  "mains": [
+    {
+      "id": "common_salt_mechanism",
+      "title": "Sal refinada vs sal mineral",
+      "prompt": "Each segment is one direct visual idea in a realistic Spanish UGC kitchen style.",
+      "segments": [
+        {
+          "id": "hook_empty_minerals",
+          "duration_seconds": 5,
+          "subject_label": "plain table salt shown as mineral-empty contrast",
+          "subject_placement_hint": "close handheld shot of plain fine table salt beside off-white flaky sea salt crystals on a kitchen counter",
+          "script": "La sal común que usas todos los días está vacía de minerales. Y la mayoría de la gente no lo sabe.",
+          "prompt": "Close handheld kitchen UGC shot: plain fine white table salt on one side and off-white translucent flaky sea salt crystals on the other. The flaky salt must match the attached grain reference: irregular fractured flakes, semi-translucent off-white crystals, not gray gravel. No labels, no fake packaging. Native dialogue: La sal común que usas todos los días está vacía de minerales. Y la mayoría de la gente no lo sabe."
+        },
+        {
+          "id": "industry_refining",
+          "duration_seconds": 6,
+          "subject_label": "industrial refining visual metaphor in kitchen",
+          "subject_placement_hint": "person pours fine white salt through a small sieve or into a bright white bowl while looking skeptical",
+          "script": "La industria le quita minerales naturales para refinarla, blanquearla y hacerla más barata.",
+          "prompt": "Realistic kitchen UGC scene: person pours fine white table salt through a small sieve into a bright white bowl, skeptical expression, ordinary counter mess, no brands. The shot should visually imply refining and whitening without looking like a factory. Native dialogue: La industria le quita minerales naturales para refinarla, blanquearla y hacerla más barata."
+        },
+        {
+          "id": "anti_caking_additives",
+          "duration_seconds": 5,
+          "subject_label": "perfect-looking table salt contrast",
+          "subject_placement_hint": "macro shot of uniform fine salt pouring too perfectly while hand points at it",
+          "script": "Luego muchas marcas le agregan antiapelmazantes para que se vea perfecta.",
+          "prompt": "Macro UGC shot: uniform fine white table salt pours in a perfect stream onto a counter while a finger points at the texture, warm kitchen light, no product packaging, no labels, no readable text. Native dialogue: Luego muchas marcas le agregan antiapelmazantes para que se vea perfecta."
+        },
+        {
+          "id": "specialist_reframe",
+          "duration_seconds": 6,
+          "subject_label": "creator reframes salt choice in kitchen",
+          "subject_placement_hint": "person gestures between regular table salt and flaky sea salt while speaking directly to phone camera",
+          "script": "Por eso mi especialista me dijo que dejara de pensar solo en menos sal y empezara a fijarme en qué tipo de sal estaba usando.",
+          "prompt": "Handheld selfie-style kitchen shot: person gestures between a small bowl of fine white table salt and a small bowl of off-white flaky sea salt crystals, speaking directly to phone camera with a serious but relatable tone. The flaky salt must match the attached reference. No packaging, no labels. Native dialogue: Por eso mi especialista me dijo que dejara de pensar solo en menos sal y empezara a fijarme en qué tipo de sal estaba usando."
+        },
+        {
+          "id": "sensory_demo",
+          "duration_seconds": 6,
+          "subject_label": "macro sensory demo of flaky sea salt",
+          "subject_placement_hint": "macro shot of off-white translucent flaky sea salt on warm wooden spoon or board",
+          "script": "A diferencia de la sal común, una sal mineral sin refinar conserva cristales reales, textura viva y un sabor más limpio.",
+          "prompt": "Macro sensory UGC shot: off-white translucent flaky sea salt crystals on a warm wooden spoon or board, fingertips gently move a few flakes, natural kitchen light. Salt must match attached grain reference: irregular fractured flakes, semi-translucent, off-white, dry coarse flakes. No packaging, no labels, no text. Native dialogue: A diferencia de la sal común, una sal mineral sin refinar conserva cristales reales, textura viva y un sabor más limpio."
+        }
+      ]
+    }
+  ],
+  "ctas": [
+    {
+      "id": "cta_comment_sal",
+      "title": "Comenta SAL",
+      "duration_seconds": 5,
+      "subject_label": "simple daily flaky salt food ritual",
+      "subject_placement_hint": "small pinch of off-white flaky sea salt sprinkled over real food; no water glass focus, no product packaging, no logos",
+      "script": "Solo necesitas una pizca en tu comida cada día. Comenta SAL y te mando la que yo uso.",
+      "prompt": "Final UGC frame: close realistic kitchen shot of a small pinch of off-white translucent flaky sea salt being sprinkled over a simple plate of real food. The salt must match attached grain reference. No product packaging, no labels, no logos, no water ritual. Native dialogue: Solo necesitas una pizca en tu comida cada día. Comenta SAL y te mando la que yo uso."
+    }
+  ],
+  "variants": {
+    "count": 1,
+    "min_total_seconds": 28,
+    "max_total_seconds": 40,
+    "seed": 20260727,
+    "stitch_leaf_segments": true
+  }
+}

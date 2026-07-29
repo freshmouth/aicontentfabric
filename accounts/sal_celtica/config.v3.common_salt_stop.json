@@ -1,0 +1,11 @@
+{
+  "schema_version": 3,
+  "name": "Sal Celtica V3 - Deja de usar sal común",
+  "account_id": "sal_celtica",
+  "source_config": "config.common_salt_stop_v3.json",
+  "subject_label": "shocked UGC kitchen creator comparing plain table salt and off-white flaky sea salt",
+  "subject_placement_hint": "surprised person in a lived-in kitchen holding common fine table salt close to camera while off-white translucent flaky sea salt crystals are visible nearby; use the local references for UGC aesthetic and correct salt texture; no product packaging or readable brands",
+  "cloudinary_reference_folder": "catalog/sal-celtica/ugc-refs",
+  "cloudinary_cached_reference_dir": "references/ugc_salt_combined",
+  "cloudinary_max_reference_images": 4
+}
