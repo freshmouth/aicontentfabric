@@ -32,6 +32,13 @@ class AccountAutopilotError(RuntimeError):
     pass
 
 
+class StageExecutionError(AccountAutopilotError):
+    def __init__(self, stage: str, cause: Exception) -> None:
+        self.stage = stage
+        self.cause_type = type(cause).__name__
+        super().__init__(f"stage={self.stage}; cause={self.cause_type}")
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     load_env(ROOT / ".env.local")
@@ -44,6 +51,8 @@ def main(argv: list[str] | None = None) -> int:
             result = run_one_account(normalize_account_id(args.account), args)
     except Exception as exc:
         print(f"Account autopilot failed: {exc}", file=sys.stderr)
+        if os.environ.get("GITHUB_ACTIONS", "").lower() == "true" and isinstance(exc, StageExecutionError):
+            print(f"::error title=Account autopilot failed::{exc}", file=sys.stderr)
         return 1
     print(json.dumps(result, indent=2, ensure_ascii=False))
     return 0
@@ -169,33 +178,51 @@ def run_autopilot(
     source_config = read_json(source_config_path)
     assert_account_id(source_config, account_id, source_config_path.name)
 
-    v3_manifest = prepare_v3_manifest(account_id, wrapper_config, source_config, source_config_path, run_dir)
-    first_frames = generate_first_frames(account_dir, wrapper_config, v3_manifest, run_dir, config)
-    omni_config_path = build_run_omni_config(
-        source_config,
-        first_frames,
-        run_dir,
-        config,
-        today=today,
-        concept_id=str(concept["concept_id"]),
+    v3_manifest = run_checked(
+        "prepare_v3_manifest",
+        lambda: prepare_v3_manifest(account_id, wrapper_config, source_config, source_config_path, run_dir),
+    )
+    first_frames = run_checked(
+        "generate_first_frames",
+        lambda: generate_first_frames(account_dir, wrapper_config, v3_manifest, run_dir, config),
+    )
+    omni_config_path = run_checked(
+        "build_omni_config",
+        lambda: build_run_omni_config(
+            source_config,
+            first_frames,
+            run_dir,
+            config,
+            today=today,
+            concept_id=str(concept["concept_id"]),
+        ),
     )
     omni_dir = run_dir / "omni"
-    run_omni(omni_config_path, omni_dir, run_dir)
-    final_video = resolve_variant_video(omni_dir)
-    publish_ready = postprocess_publish_ready(final_video, run_dir, config)
-    video_manifest = write_video_manifest(account_id, run_dir, publish_ready, concept, publish_at)
+    run_checked("generate_omni_video", lambda: run_omni(omni_config_path, omni_dir, run_dir))
+    final_video = run_checked("resolve_final_video", lambda: resolve_variant_video(omni_dir))
+    publish_ready = run_checked(
+        "postprocess_publish_ready",
+        lambda: postprocess_publish_ready(final_video, run_dir, config),
+    )
+    video_manifest = run_checked(
+        "write_video_manifest",
+        lambda: write_video_manifest(account_id, run_dir, publish_ready, concept, publish_at),
+    )
 
     publish_result: dict[str, Any] = {"status": "skipped"}
     if not args.skip_publish:
-        publish_result = publish_metricool(
-            account_id=account_id,
-            video_path=publish_ready,
-            manifest_path=video_manifest,
-            caption=str(concept["caption"]),
-            publish_at=publish_at,
-            platforms=str(config.get("platforms") or "instagram,facebook"),
-            dry_run=bool(args.dry_run),
-            run_dir=run_dir,
+        publish_result = run_checked(
+            "publish_metricool",
+            lambda: publish_metricool(
+                account_id=account_id,
+                video_path=publish_ready,
+                manifest_path=video_manifest,
+                caption=str(concept["caption"]),
+                publish_at=publish_at,
+                platforms=str(config.get("platforms") or "instagram,facebook"),
+                dry_run=bool(args.dry_run),
+                run_dir=run_dir,
+            ),
         )
 
     result = {
@@ -211,6 +238,15 @@ def run_autopilot(
     }
     write_json(run_dir / "autopilot_result.json", result)
     return result
+
+
+def run_checked(stage: str, operation: Any) -> Any:
+    try:
+        return operation()
+    except StageExecutionError:
+        raise
+    except Exception as exc:
+        raise StageExecutionError(stage, exc) from exc
 
 
 def prepare_v3_manifest(
