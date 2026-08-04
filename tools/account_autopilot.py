@@ -73,6 +73,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--registry", default=str(DEFAULT_REGISTRY), help="Master account registry JSON.")
     parser.add_argument("--force", action="store_true", help="Run even when today is not on the account cadence.")
     parser.add_argument("--today", default="", help="Override local date for cadence checks, YYYY-MM-DD.")
+    parser.add_argument(
+        "--publish-at",
+        default="",
+        help="Override the scheduled publish datetime for this run as ISO-8601, including timezone when possible.",
+    )
     parser.add_argument("--concept-id", default="", help="Force a concept_id for a single-account run.")
     parser.add_argument("--plan-only", action="store_true", help="Validate cadence/config without provider calls.")
     parser.add_argument("--dry-run", action="store_true", help="Generate assets but dry-run Metricool publishing.")
@@ -151,7 +156,12 @@ def run_autopilot(
     due = is_due(today, start_date=start_date, interval_days=interval_days)
     cycle_index = max(0, (today - start_date).days // max(1, interval_days))
     concept = select_concept(config, cycle_index=cycle_index, forced_id=str(args.concept_id or ""))
-    publish_at = scheduled_publish_datetime(today, tz, str(config.get("publish_time") or "12:00"))
+    publish_at = resolve_publish_datetime(
+        str(args.publish_at or ""),
+        today=today,
+        tz=tz,
+        default_time=str(config.get("publish_time") or "12:00"),
+    )
     plan = {
         "status": "due" if due or args.force else "skipped",
         "account_id": account_id,
@@ -561,6 +571,19 @@ def load_timezone(name: str) -> tzinfo:
 def scheduled_publish_datetime(today: date, tz: tzinfo, value: str) -> datetime:
     hour, minute = [int(part) for part in value.split(":", 1)]
     return datetime.combine(today, dt_time(hour=hour, minute=minute), tzinfo=tz)
+
+
+def resolve_publish_datetime(value: str, *, today: date, tz: tzinfo, default_time: str) -> datetime:
+    raw = value.strip()
+    if not raw:
+        return scheduled_publish_datetime(today, tz, default_time)
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError as exc:
+        raise AccountAutopilotError("--publish-at must be a valid ISO-8601 datetime.") from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=tz)
+    return parsed
 
 
 def resolve_autopilot_path(account_id: str, account_dir: Path, registry_entry: dict[str, Any] | None) -> Path:

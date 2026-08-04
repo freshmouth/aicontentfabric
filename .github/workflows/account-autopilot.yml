@@ -34,6 +34,10 @@ on:
         options:
           - "false"
           - "true"
+      publish_at:
+        description: "Optional ISO-8601 publish datetime override for a single-account run"
+        required: false
+        default: ""
 
 concurrency:
   group: multi-account-v3-autopilot
@@ -146,6 +150,9 @@ jobs:
           fi
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.plan_only }}" == "true" ]]; then
             ARGS+=(--plan-only)
+          fi
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.publish_at }}" ]]; then
+            ARGS+=(--publish-at "${{ inputs.publish_at }}")
           fi
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
             ARGS+=(--continue-on-error)
