@@ -291,10 +291,12 @@ def detect_execution_request(response: dict[str, Any], message: str, has_current
         or (has_current_draft and continuation)
     )
     publish_requested = bool(re.search(r"\b(publish|post|schedule|metricool)\b", text))
-    block_generate = bool(re.search(r"\b(?:do not|don't|dont|without)\s+(?:generate|render|run|launch)\b", text))
-    block_publish = bool(re.search(r"\b(?:do not|don't|dont|without)\s+(?:publish|post|schedule)\b", text))
+    block_generate = action_is_negated(text, r"\b(?:generate|render|assemble|run|launch|produce|create|build)\b")
+    block_publish = action_is_negated(text, r"\b(?:publish|post|schedule|metricool)\b")
+    block_continuation = action_is_negated(text, r"\b(?:proceed|go ahead|run it|do it|start it|launch it)\b")
     generate_requested = generate_requested and not block_generate
     publish_requested = publish_requested and not block_publish
+    continuation = continuation and not block_continuation
 
     action = "none"
     if publish_requested:
@@ -309,6 +311,14 @@ def detect_execution_request(response: dict[str, Any], message: str, has_current
         except ValueError:
             publish_at = None
     return {"action": action, "publish_at": publish_at, "status": "not_requested" if action == "none" else "pending"}
+
+
+def action_is_negated(text: str, action_pattern: str) -> bool:
+    for match in re.finditer(r"\b(?:do not|don't|dont|never|without)\b", text):
+        clause = re.split(r"[.!?;]", text[match.end() :], maxsplit=1)[0]
+        if re.search(action_pattern, clause):
+            return True
+    return False
 
 
 def execution_success_message(action: str, job: dict[str, Any]) -> str:

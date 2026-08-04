@@ -129,6 +129,35 @@ class DashboardTests(unittest.TestCase):
         self.assertFalse(main.github.calls[-1]["dry_run"])
         self.assertFalse(main.github.calls[-1]["skip_publish"])
 
+    def test_agent_chat_respects_a_list_of_negated_actions(self):
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "account_id": "speliers",
+                "message": "Show me the concept, but do not generate, render, run, publish, or post anything.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["execution"]["action"], "none")
+        self.assertIsNone(payload["job"])
+        self.assertEqual(main.github.calls, [])
+
+    def test_agent_chat_can_generate_without_publishing(self):
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "account_id": "sal_celtica",
+                "message": "Generate the final reel, but don't publish or post it.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["execution"]["action"], "generate_only")
+        self.assertTrue(payload["job"]["skip_publish"])
+
     def test_streaming_chat_returns_progress_and_agent_actions(self):
         response = self.client.post(
             "/api/chat/stream",
