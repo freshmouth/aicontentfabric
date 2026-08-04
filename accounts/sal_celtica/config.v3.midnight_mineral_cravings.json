@@ -4,7 +4,7 @@
   "account_id": "sal_celtica",
   "source_config": "config.midnight_mineral_cravings_v3.json",
   "subject_label": "midnight kitchen cravings and off-white flaky sea salt ritual, no product packaging",
-  "subject_placement_hint": "person opening the fridge or pantry at night with off-white translucent flaky sea salt crystals visible nearby as the relevant mineral alternative; use the local salt grain reference for crystal shape and texture; no product packaging or readable brands",
+  "subject_placement_hint": "the same person throughout the whole video opening the fridge or pantry at night with off-white translucent flaky sea salt crystals visible nearby as the relevant mineral alternative; preserve one coherent face, age, outfit continuity, and Mexican-market Spanish speaking style across all scenes; hands-only macro shots may omit the face but must not introduce a different person or different accent; use the local salt grain reference for crystal shape and texture; no product packaging or readable brands",
   "cloudinary_reference_folder": "catalog/sal-celtica/products",
   "cloudinary_cached_reference_dir": "references/salt_grain",
   "cloudinary_max_reference_images": 1

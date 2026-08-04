@@ -8,7 +8,7 @@
     "duration_seconds": 5,
     "resolution": "720p"
   },
-  "master_prompt": "Create ONE vertical 9:16 Spanish short-form UGC clip with native spoken audio for Sal Celtica. Each clip is one leaf scene only: one location, one camera setup, one visual idea, one exact spoken line. Tone: urgent, controversial, native TikTok, fast-paced, realistic kitchen UGC, not polished advertising. Keep claims framed as educational/marketing narrative, not medical advice. No miracle cures, no disease claims, no fake doctor language, no social UI, no captions baked into generated video.",
+  "master_prompt": "Create ONE vertical 9:16 Spanish short-form UGC clip with native spoken audio for Sal Celtica. Each clip is one leaf scene only: one location, one camera setup, one visual idea, one exact spoken line. Tone: urgent, controversial, native TikTok, fast-paced, realistic kitchen UGC, not polished advertising. Character and voice continuity are mandatory across the whole video: preserve the same on-camera person, same face, same age, same outfit continuity, and one consistent Mexican-market Spanish accent/speaking style. Do not switch to a different person, narrator, gender, accent, or voice. Hands-only macro/detail shots may omit the face, but must not introduce a new visible person or new voice. Keep claims framed as educational/marketing narrative, not medical advice. No miracle cures, no disease claims, no fake doctor language, no social UI, no captions baked into generated video.",
   "hooks": [
     {
       "id": "scroll_stopper_common_salt",
