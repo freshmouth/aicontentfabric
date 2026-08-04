@@ -137,11 +137,27 @@ tbody tr:last-child td { border-bottom: 0; }
 .message { max-width: 78%; margin-bottom: 14px; padding: 11px 13px; border-radius: 7px; font-size: 12px; line-height: 1.55; white-space: pre-wrap; }
 .message.user { margin-left: auto; background: #e7eee9; }
 .message.assistant { background: #f2f3f0; border: 1px solid var(--line); }
+.message-attachments { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.message-attachments span { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 4px 6px; border: 1px solid rgba(31,107,79,.16); border-radius: 4px; color: #476455; background: rgba(255,255,255,.55); font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.message-attachments svg { width: 11px; height: 11px; flex: 0 0 auto; }
 .composer { padding: 14px; border-top: 1px solid var(--line); }
 .composer textarea { width: 100%; min-height: 78px; max-height: 180px; resize: vertical; padding: 11px; border: 1px solid var(--line); border-radius: 6px; outline: none; }
 .composer textarea:focus, input:focus { border-color: #8aa99a; box-shadow: 0 0 0 3px rgba(31,107,79,.08); }
+.attachment-tray { display: none; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 7px; margin-top: 8px; }
+.attachment-tray.visible { display: grid; }
+.attachment-card { position: relative; display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 7px; min-height: 42px; padding: 4px 28px 4px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-muted); }
+.attachment-card.stored { padding-right: 7px; }
+.attachment-card > span:last-child { overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-thumb, .attachment-placeholder { width: 34px; height: 34px; border-radius: 4px; background: #dfe4df; object-fit: cover; }
+.attachment-placeholder { display: grid; place-items: center; color: var(--green); }
+.attachment-placeholder svg { width: 15px; height: 15px; }
+.attachment-remove { position: absolute; top: 4px; right: 4px; display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 4px; color: var(--muted); background: transparent; cursor: pointer; }
+.attachment-remove:hover { color: #8e3c31; background: #f4e7e4; }
+.attachment-remove svg { width: 13px; height: 13px; }
 .composer-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
 .composer-foot span { color: var(--muted); font-size: 9px; }
+.composer-tools { min-width: 0; display: flex; align-items: center; gap: 8px; }
+.composer-tools .attach-button { flex: 0 0 auto; width: 30px; height: 30px; }
 .inspector label, .field-group { position: relative; display: block; margin-bottom: 15px; color: var(--muted); font-size: 10px; font-weight: 600; }
 .inspector input, .schedule-form input, .auth-dialog input { width: 100%; min-height: 38px; margin-top: 6px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: var(--surface); outline: none; }
 .toggle-row { display: flex !important; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }

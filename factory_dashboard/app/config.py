@@ -17,6 +17,8 @@ class Settings:
     local_data_path: Path
     firestore_collection_prefix: str
     google_cloud_project: str
+    upload_bucket: str
+    upload_prefix: str
     admin_token: str
     openai_api_key: str
     openai_model: str
@@ -39,6 +41,8 @@ class Settings:
             ).resolve(),
             firestore_collection_prefix=(os.environ.get("DASHBOARD_FIRESTORE_PREFIX") or "factory").strip(),
             google_cloud_project=(os.environ.get("GOOGLE_CLOUD_PROJECT") or "").strip(),
+            upload_bucket=(os.environ.get("DASHBOARD_UPLOAD_BUCKET") or "").strip(),
+            upload_prefix=(os.environ.get("DASHBOARD_UPLOAD_PREFIX") or "factory-dashboard/uploads").strip("/"),
             admin_token=(os.environ.get("DASHBOARD_ADMIN_TOKEN") or "").strip(),
             openai_api_key=(os.environ.get("OPENAI_API_KEY") or "").strip(),
             openai_model=(os.environ.get("OPENAI_CREATIVE_MODEL") or "gpt-4.1-mini").strip(),

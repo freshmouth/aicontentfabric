@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -21,6 +21,7 @@ from .models import (
     utc_now,
 )
 from .services.accounts import AccountCatalog, AccountCatalogError
+from .services.attachments import AttachmentStorage, AttachmentStorageError, MAX_IMAGE_BYTES
 from .services.github_actions import GitHubActions, GitHubActionsError
 from .services.openai_creative import CreativeServiceError, OpenAICreativeService, validate_source_config
 from .store import build_store
@@ -31,6 +32,7 @@ store = build_store(settings)
 catalog = AccountCatalog(settings, store)
 creative = OpenAICreativeService(settings.openai_api_key, settings.openai_model)
 github = GitHubActions(settings)
+attachment_storage = AttachmentStorage(settings)
 
 app = FastAPI(title="AI Content Factory Control Plane", version="0.1.0")
 static_dir = Path(__file__).resolve().parent / "static"
@@ -57,6 +59,11 @@ async def creative_error(_: Request, exc: CreativeServiceError):
 @app.exception_handler(GitHubActionsError)
 async def github_error(_: Request, exc: GitHubActionsError):
     return json_error(502, str(exc))
+
+
+@app.exception_handler(AttachmentStorageError)
+async def attachment_error(_: Request, exc: AttachmentStorageError):
+    return json_error(400, str(exc))
 
 
 def json_error(status_code: int, detail: str):
@@ -104,18 +111,71 @@ def update_schedule(account_id: str, update: AccountScheduleUpdate) -> dict[str,
     return catalog.update_schedule(account_id, update.model_dump(exclude_none=True))
 
 
+@app.post("/api/accounts/{account_id}/attachments", dependencies=[Depends(require_admin)])
+async def upload_attachment(account_id: str, file: UploadFile = File(...)) -> dict[str, Any]:
+    catalog.get_account(account_id)
+    data = await file.read(MAX_IMAGE_BYTES + 1)
+    attachment_id = new_id("asset")
+    content_type = str(file.content_type or "").lower()
+    storage_uri = attachment_storage.put(
+        account_id=account_id,
+        attachment_id=attachment_id,
+        filename=file.filename or "reference",
+        content_type=content_type,
+        data=data,
+    )
+    record = {
+        "id": attachment_id,
+        "account_id": account_id,
+        "filename": file.filename or "reference",
+        "content_type": content_type,
+        "size_bytes": len(data),
+        "storage_uri": storage_uri,
+        "created_at": utc_now(),
+        "updated_at": utc_now(),
+    }
+    store.put("attachments", attachment_id, record)
+    return public_attachment(record)
+
+
 @app.post("/api/chat", dependencies=[Depends(require_admin)])
 def chat(request: ChatRequest) -> dict[str, Any]:
     current = store.get("drafts", request.draft_id) if request.draft_id else None
     if current and current.get("account_id") != request.account_id:
         raise HTTPException(status_code=409, detail="Draft belongs to a different account.")
+    attachment_ids = list(
+        dict.fromkeys(
+            [str(item.get("id")) for item in (current or {}).get("attachments", []) if item.get("id")]
+            + request.attachment_ids
+        )
+    )
+    if len(attachment_ids) > 6:
+        raise HTTPException(status_code=400, detail="A draft can use at most 6 reference photos.")
+    attachment_records = resolve_attachments(request.account_id, attachment_ids)
+    image_inputs = [
+        {
+            "filename": item["filename"],
+            "content_type": item["content_type"],
+            "data_url": attachment_storage.data_url(item),
+        }
+        for item in attachment_records
+    ]
     context = catalog.generation_template(request.account_id)
-    response = creative.create_or_revise(account_context=context, message=request.message, current_draft=current)
+    response = creative.create_or_revise(
+        account_context=context,
+        message=request.message,
+        current_draft=current,
+        attachments=image_inputs,
+    )
     now = utc_now()
     history = list((current or {}).get("chat_history") or [])
     history.extend(
         [
-            {"role": "user", "content": request.message},
+            {
+                "role": "user",
+                "content": request.message,
+                "attachments": [item["filename"] for item in attachment_records],
+            },
             {"role": "assistant", "content": str(response.get("assistant_message") or "Draft updated.")},
         ]
     )
@@ -128,12 +188,32 @@ def chat(request: ChatRequest) -> dict[str, Any]:
         status="draft",
         creative_spec=dict(response["source_config"]),
         chat_history=history,
+        attachments=[public_attachment(item) for item in attachment_records],
         version=int((current or {}).get("version") or 0) + 1,
         created_at=str((current or {}).get("created_at") or now),
         updated_at=now,
     ).model_dump()
     store.put("drafts", record["id"], record)
     return {"assistant_message": response.get("assistant_message"), "draft": record}
+
+
+def resolve_attachments(account_id: str, attachment_ids: list[str]) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for attachment_id in attachment_ids:
+        record = store.get("attachments", attachment_id)
+        if not record:
+            raise HTTPException(status_code=404, detail=f"Reference photo not found: {attachment_id}")
+        if record.get("account_id") != account_id:
+            raise HTTPException(status_code=409, detail="Reference photo belongs to a different account.")
+        records.append(record)
+    return records
+
+
+def public_attachment(record: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: record.get(key)
+        for key in ("id", "account_id", "filename", "content_type", "size_bytes", "created_at")
+    }
 
 
 @app.get("/api/drafts", dependencies=[Depends(require_admin)])

@@ -6,6 +6,7 @@ const state = {
   jobs: [],
   selectedDraftId: null,
   liveMode: false,
+  pendingAttachments: [],
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -25,6 +26,8 @@ function bindEvents() {
   ["#newDraftButton", "#addDraftIcon"].forEach((id) => $(id).addEventListener("click", newDraft));
   $("#quickGenerateButton").addEventListener("click", () => { showView("creative"); $("#chatInput").focus(); });
   $("#chatForm").addEventListener("submit", sendChat);
+  $("#attachPhotoButton").addEventListener("click", () => $("#photoInput").click());
+  $("#photoInput").addEventListener("change", (event) => uploadPhotos(event.target.files));
   $("#dispatchButton").addEventListener("click", dispatchDraft);
   $("#saveDraftButton").addEventListener("click", saveDraft);
   $("#testMode").addEventListener("click", () => setMode(false));
@@ -41,7 +44,8 @@ function bindEvents() {
 }
 
 async function api(path, options = {}) {
-  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  const headers = { ...(options.headers || {}) };
+  if (!(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
   const response = await fetch(path, { ...options, headers });
   if (response.status === 401) {
@@ -70,6 +74,7 @@ async function loadBootstrap() {
 }
 
 async function selectAccount(accountId) {
+  clearPendingAttachments();
   state.selectedAccountId = accountId;
   state.selectedDraftId = null;
   localStorage.setItem("factoryAccount", accountId);
@@ -129,7 +134,7 @@ function renderDrafts() {
     </div>`).join("") : `<div class="empty-row">No drafts. Start with a brief in Creative lab.</div>`;
   $("#recentDrafts").innerHTML = html;
   $("#draftRail").innerHTML = html;
-  $$('[data-draft]').forEach((row) => row.addEventListener("click", () => { state.selectedDraftId = row.dataset.draft; showView("creative"); renderDrafts(); renderWorkbench(); }));
+  $$('[data-draft]').forEach((row) => row.addEventListener("click", () => { clearPendingAttachments(); state.selectedDraftId = row.dataset.draft; showView("creative"); renderDrafts(); renderWorkbench(); }));
 }
 
 function renderWorkbench() {
@@ -139,9 +144,13 @@ function renderWorkbench() {
   if (!draft?.chat_history?.length) {
     $("#chatHistory").innerHTML = `<div class="empty-chat"><i data-lucide="message-square-text"></i><h3>Shape the next video</h3><p>Describe the topic, hook, pacing, visual direction, CTA, or a correction to an existing draft.</p></div>`;
   } else {
-    $("#chatHistory").innerHTML = draft.chat_history.map((message) => `<div class="message ${message.role}">${escapeHtml(message.content)}</div>`).join("");
+    $("#chatHistory").innerHTML = draft.chat_history.map((message) => {
+      const attachments = (message.attachments || []).map((name) => `<span><i data-lucide="image"></i>${escapeHtml(name)}</span>`).join("");
+      return `<div class="message ${message.role}">${escapeHtml(message.content)}${attachments ? `<div class="message-attachments">${attachments}</div>` : ""}</div>`;
+    }).join("");
     $("#chatHistory").scrollTop = $("#chatHistory").scrollHeight;
   }
+  renderAttachmentTray();
   const stats = draftStats(draft);
   $("#sceneCount").textContent = stats.scenes ?? "-";
   $("#durationEstimate").textContent = stats.duration ? `${stats.duration}s` : "-";
@@ -165,11 +174,17 @@ async function sendChat(event) {
   const button = $("#sendChat");
   setBusy(button, true, "Thinking");
   try {
-    const data = await api("/api/chat", { method: "POST", body: JSON.stringify({ account_id: state.selectedAccountId, message, draft_id: state.selectedDraftId }) });
+    const data = await api("/api/chat", { method: "POST", body: JSON.stringify({
+      account_id: state.selectedAccountId,
+      message,
+      draft_id: state.selectedDraftId,
+      attachment_ids: state.pendingAttachments.map((attachment) => attachment.id),
+    }) });
     const index = state.drafts.findIndex((draft) => draft.id === data.draft.id);
     if (index >= 0) state.drafts[index] = data.draft; else state.drafts.unshift(data.draft);
     state.selectedDraftId = data.draft.id;
     $("#chatInput").value = "";
+    clearPendingAttachments();
     render();
     toast("Creative draft saved to the cloud.");
   } catch (error) { toast(error.message, true); }
@@ -219,7 +234,70 @@ async function saveSchedule() {
 }
 
 function newDraft() {
-  state.selectedDraftId = null; showView("creative"); renderWorkbench(); $("#chatInput").focus();
+  clearPendingAttachments(); state.selectedDraftId = null; showView("creative"); renderWorkbench(); $("#chatInput").focus();
+}
+
+async function uploadPhotos(fileList) {
+  const files = [...(fileList || [])];
+  $("#photoInput").value = "";
+  if (!files.length) return;
+  const draftAttachmentCount = selectedDraft()?.attachments?.length || 0;
+  const room = 6 - draftAttachmentCount - state.pendingAttachments.length;
+  if (room <= 0) { toast("A draft can use at most 6 reference photos.", true); return; }
+  const selected = files.slice(0, room);
+  if (selected.length < files.length) toast(`Only ${selected.length} more photo${selected.length === 1 ? "" : "s"} can be attached.`, true);
+  const button = $("#attachPhotoButton");
+  button.disabled = true;
+  try {
+    for (const file of selected) {
+      const previewUrl = URL.createObjectURL(file);
+      const form = new FormData();
+      form.append("file", file, file.name);
+      try {
+        const uploaded = await api(`/api/accounts/${encodeURIComponent(state.selectedAccountId)}/attachments`, { method: "POST", body: form });
+        state.pendingAttachments.push({ ...uploaded, preview_url: previewUrl });
+        renderAttachmentTray();
+      } catch (error) {
+        URL.revokeObjectURL(previewUrl);
+        throw error;
+      }
+    }
+    toast(`${selected.length} reference photo${selected.length === 1 ? "" : "s"} attached.`);
+  } catch (error) { toast(error.message, true); }
+  finally { button.disabled = false; }
+}
+
+function renderAttachmentTray() {
+  const existing = selectedDraft()?.attachments || [];
+  const existingHtml = existing.map((attachment) => `
+    <div class="attachment-card stored" title="${escapeHtml(attachment.filename)}">
+      <span class="attachment-placeholder"><i data-lucide="image"></i></span>
+      <span>${escapeHtml(attachment.filename)}</span>
+    </div>`).join("");
+  const pendingHtml = state.pendingAttachments.map((attachment) => `
+    <div class="attachment-card" title="${escapeHtml(attachment.filename)}">
+      <img class="attachment-thumb" src="${attachment.preview_url}" alt="">
+      <span>${escapeHtml(attachment.filename)}</span>
+      <button type="button" class="attachment-remove" data-remove-attachment="${escapeHtml(attachment.id)}" title="Remove ${escapeHtml(attachment.filename)}" aria-label="Remove ${escapeHtml(attachment.filename)}"><i data-lucide="x"></i></button>
+    </div>`).join("");
+  $("#attachmentTray").innerHTML = existingHtml + pendingHtml;
+  $("#attachmentTray").classList.toggle("visible", Boolean(existingHtml || pendingHtml));
+  $$('[data-remove-attachment]').forEach((button) => button.addEventListener("click", () => removePendingAttachment(button.dataset.removeAttachment)));
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function removePendingAttachment(attachmentId) {
+  const index = state.pendingAttachments.findIndex((attachment) => attachment.id === attachmentId);
+  if (index < 0) return;
+  URL.revokeObjectURL(state.pendingAttachments[index].preview_url);
+  state.pendingAttachments.splice(index, 1);
+  renderAttachmentTray();
+}
+
+function clearPendingAttachments() {
+  state.pendingAttachments.forEach((attachment) => URL.revokeObjectURL(attachment.preview_url));
+  state.pendingAttachments = [];
+  if ($("#attachmentTray")) renderAttachmentTray();
 }
 
 function setMode(live) {

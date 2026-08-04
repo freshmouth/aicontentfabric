@@ -7,6 +7,7 @@ The dashboard is a separate cloud control plane for the existing account-isolate
 - Account registry and readiness
 - Per-account cadence overrides
 - ChatGPT-generated V3 creative drafts
+- Account-scoped photo references for new drafts and revisions
 - Versioned revisions and approvals
 - Test or live cloud generation
 - GitHub Actions execution status
@@ -23,6 +24,7 @@ $env:DASHBOARD_STORE="local"
 $env:DASHBOARD_ADMIN_TOKEN="local-dev-token"
 $env:OPENAI_API_KEY="..."
 $env:GITHUB_DASHBOARD_TOKEN="..."
+$env:DASHBOARD_UPLOAD_BUCKET=""
 python -m uvicorn factory_dashboard.app.main:app --host 127.0.0.1 --port 8088
 ```
 
@@ -34,6 +36,7 @@ The production deployment uses:
 
 - Cloud Run with zero minimum instances
 - Firestore for drafts, revisions, jobs, and schedule overrides
+- Cloud Storage for private, account-scoped creative reference photos
 - Secret Manager for dashboard, cron, OpenAI, and GitHub credentials
 - GitHub Actions for the existing V3 media pipeline
 - Metricool for account-specific publishing
@@ -49,6 +52,12 @@ factory-dashboard-github-token
 ```
 
 The GitHub token needs Actions read/write access for `freshmouth/aicontentfabric`. It does not need access to social credentials.
+
+## Creative Photo References
+
+Use the paperclip in Creative Lab to attach up to six JPEG, PNG, or WebP photos, each no larger than 8 MB. The original files are stored under `factory-dashboard/uploads/<account_id>/` and are sent to the OpenAI creative request as image inputs. Draft metadata stores only the account-scoped attachment record; references from one account are rejected if used by another account.
+
+For local development, leave `DASHBOARD_UPLOAD_BUCKET` empty and uploads are written to the gitignored `factory_dashboard/.data/uploads/` directory. Cloud Run uses `ai-content-factory-501821-omni-outputs`.
 
 ## Deploy
 

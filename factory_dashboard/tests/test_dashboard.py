@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -10,12 +11,17 @@ from fastapi.testclient import TestClient
 
 from factory_dashboard.app import main
 from factory_dashboard.app.services.accounts import AccountCatalog
+from factory_dashboard.app.services.attachments import AttachmentStorage
 from factory_dashboard.app.store import LocalJsonStore
 from tools.account_autopilot import AccountAutopilotError, load_generation_request
 
 
 class FakeCreative:
-    def create_or_revise(self, *, account_context, message, current_draft=None):
+    def __init__(self):
+        self.last_attachments = []
+
+    def create_or_revise(self, *, account_context, message, current_draft=None, attachments=None):
+        self.last_attachments = attachments or []
         source = json.loads(json.dumps(account_context["source_config"]))
         source["concept_id"] = "dashboard_test_concept"
         return {
@@ -47,6 +53,8 @@ class DashboardTests(unittest.TestCase):
         main.catalog = AccountCatalog(main.settings, self.store)
         main.creative = FakeCreative()
         main.github = FakeGitHub()
+        attachment_settings = replace(main.settings, root=Path(self.temp.name), upload_bucket="")
+        main.attachment_storage = AttachmentStorage(attachment_settings)
         self.client = TestClient(main.app)
 
     def tearDown(self):
@@ -98,6 +106,45 @@ class DashboardTests(unittest.TestCase):
         )
         with self.assertRaises(AccountAutopilotError):
             load_generation_request(str(path), expected_account_id="sal_celtica")
+
+    def test_photo_upload_is_sent_to_creative_draft(self):
+        upload = self.client.post(
+            "/api/accounts/sal_celtica/attachments",
+            files={"file": ("salt-reference.png", b"\x89PNG\r\n\x1a\nreference", "image/png")},
+        )
+        self.assertEqual(upload.status_code, 200)
+        attachment = upload.json()
+
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "account_id": "sal_celtica",
+                "message": "Use this photo as the visual source for a new creative.",
+                "attachment_ids": [attachment["id"]],
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        draft = response.json()["draft"]
+        self.assertEqual(draft["attachments"][0]["id"], attachment["id"])
+        self.assertEqual(main.creative.last_attachments[0]["filename"], "salt-reference.png")
+        self.assertTrue(main.creative.last_attachments[0]["data_url"].startswith("data:image/png;base64,"))
+
+    def test_photo_cannot_cross_account_boundary(self):
+        upload = self.client.post(
+            "/api/accounts/sal_celtica/attachments",
+            files={"file": ("salt-reference.png", b"\x89PNG\r\n\x1a\nreference", "image/png")},
+        )
+        attachment_id = upload.json()["id"]
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "account_id": "hyperdash",
+                "message": "Use the other account photo.",
+                "attachment_ids": [attachment_id],
+            },
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("different account", response.json()["detail"])
 
 
 if __name__ == "__main__":

@@ -35,6 +35,7 @@ RUNTIME_ROLES = (
     "roles/run.admin",
     "roles/secretmanager.secretAccessor",
     "roles/cloudscheduler.admin",
+    "roles/storage.objectAdmin",
 )
 
 

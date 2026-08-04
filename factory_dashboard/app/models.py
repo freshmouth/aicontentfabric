@@ -19,6 +19,7 @@ class ChatRequest(BaseModel):
     account_id: str
     message: str = Field(min_length=3, max_length=12000)
     draft_id: str | None = None
+    attachment_ids: list[str] = Field(default_factory=list, max_length=6)
 
 
 class DraftUpdate(BaseModel):
@@ -58,7 +59,8 @@ class DraftRecord(BaseModel):
     caption: str
     status: Literal["draft", "approved", "archived"] = "draft"
     creative_spec: dict[str, Any]
-    chat_history: list[dict[str, str]] = Field(default_factory=list)
+    chat_history: list[dict[str, Any]] = Field(default_factory=list)
+    attachments: list[dict[str, Any]] = Field(default_factory=list)
     version: int = 1
     created_at: str
     updated_at: str

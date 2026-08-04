@@ -25,15 +25,23 @@ class OpenAICreativeService:
         account_context: dict[str, Any],
         message: str,
         current_draft: dict[str, Any] | None = None,
+        attachments: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         if not self.api_key:
             raise CreativeServiceError("OPENAI_API_KEY is not configured for dashboard creative chat.")
         template = account_context["source_config"]
-        prompt = self._prompt(account_context, message, current_draft)
+        attachments = attachments or []
+        prompt = self._prompt(account_context, message, current_draft, attachments)
+        content: list[dict[str, Any]] = [{"type": "input_text", "text": prompt}]
+        content.extend(
+            {"type": "input_image", "image_url": item["data_url"], "detail": "high"}
+            for item in attachments
+        )
         payload = {
             "model": self.model,
-            "input": [{"role": "user", "content": [{"type": "input_text", "text": prompt}]}],
+            "input": [{"role": "user", "content": content}],
             "max_output_tokens": 7000,
+            "text": {"format": {"type": "json_object"}},
         }
         request = urllib.request.Request(
             "https://api.openai.com/v1/responses",
@@ -67,10 +75,16 @@ class OpenAICreativeService:
         return parsed
 
     @staticmethod
-    def _prompt(context: dict[str, Any], message: str, current: dict[str, Any] | None) -> str:
+    def _prompt(
+        context: dict[str, Any],
+        message: str,
+        current: dict[str, Any] | None,
+        attachments: list[dict[str, str]],
+    ) -> str:
         account = context["account"]
         template = context["source_config"]
         current_json = json.dumps((current or {}).get("creative_spec") or {}, ensure_ascii=False)
+        attachment_names = [item.get("filename") or "reference image" for item in attachments]
         return f"""
 You are the creative director inside a multi-account short-form video factory.
 
@@ -87,6 +101,13 @@ clear ending. Keep health claims educational and non-medical. Preserve the templ
 
 USER REQUEST:
 {message}
+
+ATTACHED VISUAL REFERENCES:
+{json.dumps(attachment_names, ensure_ascii=False)}
+Treat attached photos as real visual inputs. Follow the user's instruction for whether each image is a character,
+product, aesthetic, location, composition, or storyboard reference. Describe the relevant visual facts inside the
+scene prompts so downstream image and video generation can use them. Do not import identity or branding from any
+other account, and do not claim an attachment was used when none is listed.
 
 CURRENT DRAFT, if this is a revision:
 {current_json}

@@ -51,7 +51,7 @@ jobs:
           --platform managed
           --allow-unauthenticated
           --service-account daily-factory@ai-content-factory-501821.iam.gserviceaccount.com
-          --set-env-vars DASHBOARD_STORE=firestore,GOOGLE_CLOUD_PROJECT=ai-content-factory-501821,GITHUB_OWNER=freshmouth,GITHUB_REPO=aicontentfabric,GITHUB_WORKFLOW=account-autopilot.yml,GITHUB_BRANCH=main
+          --set-env-vars DASHBOARD_STORE=firestore,GOOGLE_CLOUD_PROJECT=ai-content-factory-501821,DASHBOARD_UPLOAD_BUCKET=ai-content-factory-501821-omni-outputs,DASHBOARD_UPLOAD_PREFIX=factory-dashboard/uploads,GITHUB_OWNER=freshmouth,GITHUB_REPO=aicontentfabric,GITHUB_WORKFLOW=account-autopilot.yml,GITHUB_BRANCH=main
           --set-secrets DASHBOARD_ADMIN_TOKEN=factory-dashboard-admin-token:latest,DASHBOARD_CRON_TOKEN=factory-dashboard-cron-token:latest,OPENAI_API_KEY=openai-api-key:latest,GITHUB_DASHBOARD_TOKEN=factory-dashboard-github-token:latest
           --min-instances 0
           --max-instances 3

@@ -109,8 +109,13 @@
             </div>
             <form id="chatForm" class="composer">
               <textarea id="chatInput" rows="3" placeholder="Create a 30-second controversial supermarket swap with a visual pattern interrupt..."></textarea>
+              <input id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+              <div id="attachmentTray" class="attachment-tray" aria-live="polite"></div>
               <div class="composer-foot">
-                <span id="chatHint">Account identity and V3 rules are applied automatically.</span>
+                <div class="composer-tools">
+                  <button class="icon-button attach-button" type="button" id="attachPhotoButton" title="Attach reference photos" aria-label="Attach reference photos"><i data-lucide="paperclip"></i></button>
+                  <span id="chatHint">Account identity and V3 rules are applied automatically.</span>
+                </div>
                 <button class="button primary" type="submit" id="sendChat"><i data-lucide="arrow-up"></i><span>Send</span></button>
               </div>
             </form>
