@@ -70,11 +70,10 @@ jobs:
             --time-zone "America/Mexico_City"
             --uri "$URL/api/system/tick"
             --http-method POST
-            --headers "X-Factory-Cron=$CRON_TOKEN"
             --attempt-deadline 300s
           )
           if gcloud scheduler jobs describe factory-dashboard-tick --project ai-content-factory-501821 --location us-central1 >/dev/null 2>&1; then
-            gcloud scheduler jobs update http factory-dashboard-tick "${COMMON[@]}"
+            gcloud scheduler jobs update http factory-dashboard-tick "${COMMON[@]}" --update-headers "X-Factory-Cron=$CRON_TOKEN"
           else
-            gcloud scheduler jobs create http factory-dashboard-tick "${COMMON[@]}"
+            gcloud scheduler jobs create http factory-dashboard-tick "${COMMON[@]}" --headers "X-Factory-Cron=$CRON_TOKEN"
           fi
