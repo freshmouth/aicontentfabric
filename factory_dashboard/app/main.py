@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import json
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import Settings
@@ -33,6 +35,7 @@ catalog = AccountCatalog(settings, store)
 creative = OpenAICreativeService(settings.openai_api_key, settings.openai_model)
 github = GitHubActions(settings)
 attachment_storage = AttachmentStorage(settings)
+chat_executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="creative-agent")
 
 app = FastAPI(title="AI Content Factory Control Plane", version="0.1.0")
 static_dir = Path(__file__).resolve().parent / "static"
@@ -140,6 +143,52 @@ async def upload_attachment(account_id: str, file: UploadFile = File(...)) -> di
 
 @app.post("/api/chat", dependencies=[Depends(require_admin)])
 def chat(request: ChatRequest) -> dict[str, Any]:
+    return process_chat(request)
+
+
+@app.post("/api/chat/stream", dependencies=[Depends(require_admin)])
+def stream_chat(request: ChatRequest) -> StreamingResponse:
+    def event_stream():
+        yield stream_event("status", message="Reading your brief and account rules...")
+        future = chat_executor.submit(process_chat, request)
+        stages = (
+            "Reviewing the conversation and references...",
+            "Shaping the hook, pacing, and scene arc...",
+            "Checking identity, continuity, and account isolation...",
+            "Writing the creative response and production blueprint...",
+        )
+        stage_index = 0
+        while True:
+            try:
+                result = future.result(timeout=4)
+                break
+            except FutureTimeoutError:
+                yield stream_event("status", message=stages[stage_index % len(stages)])
+                stage_index += 1
+            except CreativeServiceError as exc:
+                yield stream_event("error", message=str(exc))
+                return
+            except Exception:
+                yield stream_event("error", message="The creative agent could not finish this turn. Nothing was queued.")
+                return
+        yield stream_event("result", data=result)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="application/x-ndjson",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+def stream_event(event_type: str, **payload: Any) -> str:
+    return json.dumps({"type": event_type, **payload}, ensure_ascii=False) + "\n"
+
+
+def process_chat(request: ChatRequest) -> dict[str, Any]:
     current = store.get("drafts", request.draft_id) if request.draft_id else None
     if current and current.get("account_id") != request.account_id:
         raise HTTPException(status_code=409, detail="Draft belongs to a different account.")
@@ -176,7 +225,11 @@ def chat(request: ChatRequest) -> dict[str, Any]:
                 "content": request.message,
                 "attachments": [item["filename"] for item in attachment_records],
             },
-            {"role": "assistant", "content": str(response.get("assistant_message") or "Draft updated.")},
+            {
+                "role": "assistant",
+                "content": str(response.get("assistant_message") or "Draft updated."),
+                "actions": [str(item) for item in (response.get("suggested_actions") or [])[:4]],
+            },
         ]
     )
     record = DraftRecord(

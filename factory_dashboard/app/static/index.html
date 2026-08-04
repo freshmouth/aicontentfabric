@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/app.css">
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
-  <script src="/assets/app.js?v=20260804.2" defer></script>
+  <script src="/assets/app.js?v=20260804.3" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -101,11 +101,11 @@
 
           <section class="creative-workbench">
             <div class="workbench-header">
-              <div><span class="eyebrow">ChatGPT creative director</span><h2 id="draftTitle">New concept</h2></div>
+              <div><span class="eyebrow">AI creative director <span class="agent-presence">Online</span></span><h2 id="draftTitle">New concept</h2></div>
               <div class="segmented" aria-label="Draft status"><button data-status="draft" class="active">Draft</button><button data-status="approved">Approved</button></div>
             </div>
             <div id="chatHistory" class="chat-history">
-              <div class="empty-chat"><i data-lucide="message-square-text"></i><h3>Shape the next video</h3><p>Describe the topic, hook, pacing, visual direction, CTA, or a correction to an existing draft.</p></div>
+              <div class="empty-chat"><i data-lucide="message-square-text"></i><h3>Shape the next video</h3><p>Describe the topic, hook, pacing, visual direction, CTA, or a correction to an existing draft.</p><div class="starter-actions"><button type="button" data-agent-action="Pitch three distinct concepts for this account.">Pitch concepts</button><button type="button" data-agent-action="Build a strong hook and show me the complete scene plan.">Build a hook</button><button type="button" data-agent-action="Review the latest account rules and propose the next creative test.">Plan a test</button></div></div>
             </div>
             <form id="chatForm" class="composer">
               <textarea id="chatInput" rows="3" placeholder="Create a 30-second controversial supermarket swap with a visual pattern interrupt..."></textarea>

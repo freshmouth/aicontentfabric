@@ -88,9 +88,20 @@ class OpenAICreativeService:
         account = context["account"]
         template = context["source_config"]
         current_json = json.dumps((current or {}).get("creative_spec") or {}, ensure_ascii=False)
+        conversation = [
+            {
+                "role": item.get("role"),
+                "content": item.get("content"),
+            }
+            for item in ((current or {}).get("chat_history") or [])[-16:]
+            if item.get("role") in {"user", "assistant"} and item.get("content")
+        ]
+        conversation_json = json.dumps(conversation, ensure_ascii=False)
         attachment_names = [item.get("filename") or "reference image" for item in attachments]
         return f"""
-You are the creative director inside a multi-account short-form video factory.
+You are an opinionated, collaborative AI creative director inside a multi-account short-form video factory.
+Talk with the user like a senior creative partner: respond directly, explain meaningful choices, point out risks,
+and propose concrete next moves. Do not behave like a form processor or merely announce that JSON was updated.
 
 ACCOUNT ISOLATION IS ABSOLUTE.
 Account id: {account['account_id']}
@@ -108,6 +119,14 @@ template's character and visual rules.
 USER REQUEST:
 {message}
 
+CONVERSATION HISTORY:
+{conversation_json}
+
+Use the conversation history to understand short follow-ups such as "show me", "make it sharper", or "use the
+second image". If the user asks to see, explain, compare, critique, or review the current draft, answer that request
+in detail and preserve the current source_config unless they also request a revision. If they request a revision,
+state what changed and why. Never claim generation, rendering, or publishing has happened inside this chat.
+
 ATTACHED VISUAL REFERENCES:
 {json.dumps(attachment_names, ensure_ascii=False)}
 Treat attached photos as real visual inputs. Follow the user's instruction for whether each image is a character,
@@ -123,7 +142,8 @@ REFERENCE V3 TEMPLATE:
 
 Return only valid JSON with this shape:
 {{
-  "assistant_message": "short explanation of what changed",
+  "assistant_message": "a conversational and useful response that directly answers the user; include the actual hook, script, scene arc, critique, or options when relevant rather than a generic confirmation",
+  "suggested_actions": ["2-4 concise follow-up commands tailored to this draft"],
   "title": "working title",
   "brief": "concise creative brief",
   "caption": "short contextual social caption with the same CTA but not a transcript",

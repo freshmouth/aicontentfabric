@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from factory_dashboard.app import main
 from factory_dashboard.app.services.accounts import AccountCatalog
 from factory_dashboard.app.services.attachments import AttachmentStorage
-from factory_dashboard.app.services.openai_creative import validate_source_config
+from factory_dashboard.app.services.openai_creative import OpenAICreativeService, validate_source_config
 from factory_dashboard.app.store import LocalJsonStore
 from tools.account_autopilot import (
     AccountAutopilotError,
@@ -32,6 +32,7 @@ class FakeCreative:
         source["concept_id"] = "dashboard_test_concept"
         return {
             "assistant_message": "Built a stricter hook and preserved the account identity.",
+            "suggested_actions": ["Show me the full script", "Make the hook sharper"],
             "title": "Dashboard test concept",
             "brief": message,
             "caption": "A contextual caption. Comment SAL for the source.",
@@ -92,6 +93,45 @@ class DashboardTests(unittest.TestCase):
         call = main.github.calls[0]
         self.assertEqual(call["account_id"], "sal_celtica")
         self.assertEqual(call["payload"]["source_config"]["account_id"], "sal_celtica")
+
+    def test_streaming_chat_returns_progress_and_agent_actions(self):
+        response = self.client.post(
+            "/api/chat/stream",
+            json={"account_id": "sal_celtica", "message": "Show me a stronger opening."},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        events = [json.loads(line) for line in response.text.splitlines() if line]
+        self.assertEqual(events[0]["type"], "status")
+        self.assertEqual(events[-1]["type"], "result")
+        assistant = events[-1]["data"]["draft"]["chat_history"][-1]
+        self.assertEqual(assistant["role"], "assistant")
+        self.assertEqual(assistant["actions"], ["Show me the full script", "Make the hook sharper"])
+
+    def test_creative_prompt_includes_prior_conversation(self):
+        prompt = OpenAICreativeService._prompt(
+            {
+                "account": {
+                    "account_id": "speliers",
+                    "display_name": "Speliers",
+                    "description": "Myth and cinema analysis.",
+                },
+                "source_config": {"language": "en"},
+            },
+            "Show me the revised ending.",
+            {
+                "creative_spec": {"concept_id": "cyclops_myth"},
+                "chat_history": [
+                    {"role": "user", "content": "Make the Cyclops hook personal."},
+                    {"role": "assistant", "content": "I reframed the cave as avoidance."},
+                ],
+            },
+            [],
+        )
+
+        self.assertIn("Make the Cyclops hook personal.", prompt)
+        self.assertIn("I reframed the cave as avoidance.", prompt)
+        self.assertIn("Show me the revised ending.", prompt)
 
     def test_request_loader_rejects_cross_account_source(self):
         path = Path(self.temp.name) / "request.json"

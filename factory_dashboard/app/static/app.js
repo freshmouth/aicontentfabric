@@ -73,6 +73,59 @@ async function api(path, options = {}) {
   return data;
 }
 
+async function streamCreative(payload, onStatus) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), CREATIVE_REQUEST_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch("/api/chat/stream", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    if (response.status === 401) {
+      $("#authScreen").classList.remove("hidden");
+      throw new Error("Authentication required");
+    }
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || `Request failed (${response.status})`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let result = null;
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const event = JSON.parse(line);
+        if (event.type === "status") onStatus(event.message);
+        if (event.type === "error") throw new Error(event.message || "Creative agent failed.");
+        if (event.type === "result") result = event.data;
+      }
+      if (done) break;
+    }
+    if (!result) throw new Error("Creative agent finished without returning a draft.");
+    return result;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("Creative agent timed out after 120 seconds. Nothing was queued.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 async function loadBootstrap() {
   try {
     const suffix = state.selectedAccountId ? `?account_id=${encodeURIComponent(state.selectedAccountId)}` : "";
@@ -160,10 +213,7 @@ function renderWorkbench() {
   if (!draft?.chat_history?.length) {
     $("#chatHistory").innerHTML = `<div class="empty-chat"><i data-lucide="message-square-text"></i><h3>Shape the next video</h3><p>Describe the topic, hook, pacing, visual direction, CTA, or a correction to an existing draft.</p></div>`;
   } else {
-    $("#chatHistory").innerHTML = draft.chat_history.map((message) => {
-      const attachments = (message.attachments || []).map((name) => `<span><i data-lucide="image"></i>${escapeHtml(name)}</span>`).join("");
-      return `<div class="message ${message.role}">${escapeHtml(message.content)}${attachments ? `<div class="message-attachments">${attachments}</div>` : ""}</div>`;
-    }).join("");
+    $("#chatHistory").innerHTML = draft.chat_history.map(renderChatMessage).join("") + renderCreativeBlueprint(draft);
     $("#chatHistory").scrollTop = $("#chatHistory").scrollHeight;
   }
   renderAttachmentTray();
@@ -173,6 +223,7 @@ function renderWorkbench() {
   $("#draftVersion").textContent = draft ? `v${draft.version}` : "-";
   $("#dispatchButton").disabled = !draft;
   $("#saveDraftButton").disabled = !draft;
+  $$('[data-agent-action]').forEach((button) => button.addEventListener("click", () => runAgentAction(button.dataset.agentAction)));
   if (window.lucide) window.lucide.createIcons();
 }
 
@@ -193,18 +244,19 @@ async function sendChat(event) {
   if (!message) return;
   const button = $("#sendChat");
   setBusy(button, true, "Thinking");
+  const thinking = showAgentThinking(message);
   const startedAt = Date.now();
   const elapsedTimer = window.setInterval(() => {
     const seconds = Math.floor((Date.now() - startedAt) / 1000);
     setBusy(button, true, `Thinking ${seconds}s`);
   }, 1000);
   try {
-    const data = await api("/api/chat", { method: "POST", timeoutMs: CREATIVE_REQUEST_TIMEOUT_MS, body: JSON.stringify({
+    const data = await streamCreative({
       account_id: state.selectedAccountId,
       message,
       draft_id: state.selectedDraftId,
       attachment_ids: state.pendingAttachments.map((attachment) => attachment.id),
-    }) });
+    }, (status) => thinking.update(status));
     const index = state.drafts.findIndex((draft) => draft.id === data.draft.id);
     if (index >= 0) state.drafts[index] = data.draft; else state.drafts.unshift(data.draft);
     state.selectedDraftId = data.draft.id;
@@ -212,8 +264,12 @@ async function sendChat(event) {
     clearPendingAttachments();
     render();
     toast("Creative draft saved to the cloud.");
-  } catch (error) { toast(error.message, true); }
+  } catch (error) {
+    thinking.fail(error.message);
+    toast(error.message, true);
+  }
   finally {
+    thinking.stop();
     window.clearInterval(elapsedTimer);
     setBusy(button, false, "Send");
   }
@@ -314,6 +370,92 @@ function renderAttachmentTray() {
   if (window.lucide) window.lucide.createIcons();
 }
 
+function renderChatMessage(message) {
+  const attachments = (message.attachments || []).map((name) => `<span><i data-lucide="image"></i>${escapeHtml(name)}</span>`).join("");
+  const actions = message.role === "assistant" && (message.actions || []).length
+    ? `<div class="agent-actions">${message.actions.map((action) => `<button type="button" data-agent-action="${escapeHtml(action)}">${escapeHtml(action)}</button>`).join("")}</div>`
+    : "";
+  const avatar = message.role === "assistant" ? `<span class="agent-avatar"><i data-lucide="sparkles"></i></span>` : "";
+  const label = message.role === "assistant" ? `<span class="message-role">Creative agent</span>` : "";
+  return `<div class="message-row ${message.role}">${avatar}<div class="message ${message.role}">${label}<div class="message-copy">${escapeHtml(message.content)}</div>${attachments ? `<div class="message-attachments">${attachments}</div>` : ""}${actions}</div></div>`;
+}
+
+function renderCreativeBlueprint(draft) {
+  const scenes = flattenDraftScenes(draft);
+  if (!scenes.length) return "";
+  const duration = scenes.reduce((total, scene) => total + scene.duration, 0);
+  const rows = scenes.map((scene, index) => `
+    <details class="scene-row"${index === 0 ? " open" : ""}>
+      <summary>
+        <span class="scene-index">${String(index + 1).padStart(2, "0")}</span>
+        <span class="scene-heading"><small>${escapeHtml(scene.kind)}</small><strong>${escapeHtml(scene.title)}</strong></span>
+        <time>${scene.duration}s</time>
+        <i data-lucide="chevron-down"></i>
+      </summary>
+      <div class="scene-detail">
+        <span>Spoken line</span><p>${escapeHtml(scene.script || "No spoken line set.")}</p>
+        <span>Visual direction</span><p>${escapeHtml(scene.prompt || "No visual direction set.")}</p>
+      </div>
+    </details>`).join("");
+  return `<section class="creative-blueprint">
+    <header><div><span class="eyebrow">Live production blueprint</span><h3>Current cut</h3></div><span>${scenes.length} scenes · ${duration}s</span></header>
+    <div class="scene-rows">${rows}</div>
+  </section>`;
+}
+
+function flattenDraftScenes(draft) {
+  const spec = draft?.creative_spec;
+  if (!spec) return [];
+  const defaultDuration = Number(spec.defaults?.duration_seconds || 5);
+  const scenes = [];
+  const add = (scene, kind) => scenes.push({
+    ...scene,
+    kind,
+    title: scene.title || scene.id || kind,
+    duration: Number(scene.duration_seconds || defaultDuration),
+  });
+  (spec.hooks || []).forEach((scene) => add(scene, "Hook"));
+  (spec.mains || []).forEach((main) => (main.segments || [main]).forEach((scene) => add(scene, "Main")));
+  (spec.ctas || []).forEach((scene) => add(scene, "CTA"));
+  return scenes;
+}
+
+function runAgentAction(action) {
+  $("#chatInput").value = action;
+  $("#chatForm").requestSubmit();
+}
+
+function showAgentThinking(message) {
+  const history = $("#chatHistory");
+  if (history.querySelector(".empty-chat")) history.innerHTML = "";
+  const attachments = state.pendingAttachments.map((attachment) => attachment.filename);
+  history.insertAdjacentHTML("beforeend", renderChatMessage({ role: "user", content: message, attachments }));
+  history.insertAdjacentHTML("beforeend", `
+    <div class="message-row assistant agent-thinking-row" id="agentThinking">
+      <span class="agent-avatar working"><i data-lucide="sparkles"></i></span>
+      <div class="message assistant agent-thinking">
+        <span class="message-role">Creative agent</span>
+        <div class="thinking-status"><span class="thinking-dots"><i></i><i></i><i></i></span><span data-thinking-status>Opening the creative workspace...</span></div>
+      </div>
+    </div>`);
+  history.scrollTop = history.scrollHeight;
+  if (window.lucide) window.lucide.createIcons();
+  const node = $("#agentThinking");
+  return {
+    update(status) {
+      const statusNode = node?.querySelector("[data-thinking-status]");
+      if (statusNode) statusNode.textContent = status;
+      history.scrollTop = history.scrollHeight;
+    },
+    fail(messageText) {
+      node?.classList.add("failed");
+      const statusNode = node?.querySelector("[data-thinking-status]");
+      if (statusNode) statusNode.textContent = messageText;
+    },
+    stop() {},
+  };
+}
+
 function removePendingAttachment(attachmentId) {
   const index = state.pendingAttachments.findIndex((attachment) => attachment.id === attachmentId);
   if (index < 0) return;
@@ -349,10 +491,8 @@ function formatShortDate(value) { return value ? new Intl.DateTimeFormat(undefin
 function formatTime(value) { return value ? new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date(value)) : ""; }
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char])); }
 function draftStats(draft) {
-  if (!draft?.creative_spec) return {};
-  const spec = draft.creative_spec; const scenes = [...(spec.hooks || []), ...(spec.ctas || [])];
-  (spec.mains || []).forEach((main) => scenes.push(...(main.segments || [main])));
-  return { scenes: scenes.length, duration: scenes.reduce((total, scene) => total + Number(scene.duration_seconds || spec.defaults?.duration_seconds || 5), 0) };
+  const scenes = flattenDraftScenes(draft);
+  return scenes.length ? { scenes: scenes.length, duration: scenes.reduce((total, scene) => total + scene.duration, 0) } : {};
 }
 function setBusy(button, busy, text) { button.disabled = busy; const span = button.querySelector("span"); if (span) span.textContent = text; }
 function toast(message, error = false) { const node = document.createElement("div"); node.className = `toast${error ? " error" : ""}`; node.textContent = message; $("#toastRegion").appendChild(node); setTimeout(() => node.remove(), 4200); }
