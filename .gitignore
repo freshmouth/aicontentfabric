@@ -27,4 +27,6 @@ social_scheduler/config.meta.local.json
 accounts/*/queue.json
 accounts/*/secrets.env
 gha-creds-*.json
+factory_dashboard/.data/
+factory_dashboard/.pytest_cache/
 daily_factory/v11_*/

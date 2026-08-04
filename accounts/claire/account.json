@@ -1,0 +1,18 @@
+{
+  "account_id": "claire",
+  "display_name": "Claire",
+  "status": "active",
+  "pipeline": "v3",
+  "description": "Claire health/UGC account. Claire character assets and prompt DNA stay isolated here.",
+  "legacy_paths": {
+    "character": "characters/claire_natural",
+    "content_library": "content_library/claire_natural",
+    "daily_factory": "daily_factory"
+  },
+  "paths": {
+    "prompts": "accounts/claire/prompts",
+    "content_library": "accounts/claire/content_library",
+    "runs": "accounts/claire/runs",
+    "logs": "accounts/claire/logs"
+  }
+}

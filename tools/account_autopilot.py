@@ -82,6 +82,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--plan-only", action="store_true", help="Validate cadence/config without provider calls.")
     parser.add_argument("--dry-run", action="store_true", help="Generate assets but dry-run Metricool publishing.")
     parser.add_argument("--skip-publish", action="store_true", help="Generate video only.")
+    parser.add_argument("--request-file", default="", help="Account-scoped dashboard generation request JSON.")
+    parser.add_argument("--request-id", default="", help="External request id used for traceable dashboard runs.")
     parser.add_argument("--continue-on-error", action="store_true", help="Keep processing other accounts when one fails.")
     return parser
 
@@ -155,7 +157,14 @@ def run_autopilot(
     interval_days = int(config.get("interval_days") or 1)
     due = is_due(today, start_date=start_date, interval_days=interval_days)
     cycle_index = max(0, (today - start_date).days // max(1, interval_days))
+    generation_request = load_generation_request(str(args.request_file or ""), expected_account_id=account_id)
     concept = select_concept(config, cycle_index=cycle_index, forced_id=str(args.concept_id or ""))
+    if generation_request:
+        concept = {
+            **concept,
+            "concept_id": generation_request["concept_id"],
+            "caption": generation_request.get("caption") or concept.get("caption") or "",
+        }
     publish_at = resolve_publish_datetime(
         str(args.publish_at or ""),
         today=today,
@@ -174,6 +183,7 @@ def run_autopilot(
         "publish_at": publish_at.isoformat(),
         "platforms": str(config.get("platforms") or "instagram,facebook"),
         "autopilot_config": str(autopilot_path),
+        "request_id": str(args.request_id or generation_request.get("request_id") or "") if generation_request else "",
     }
     if args.plan_only:
         plan["plan_only"] = True
@@ -181,19 +191,29 @@ def run_autopilot(
     if not due and not args.force:
         return plan
 
-    run_id = f"autopilot_{today.strftime('%Y%m%d')}_{slug(concept['concept_id'])}"
+    external_request_id = str(args.request_id or (generation_request or {}).get("request_id") or "").strip()
+    run_id = (
+        f"dashboard_{slug(external_request_id)}"
+        if external_request_id
+        else f"autopilot_{today.strftime('%Y%m%d')}_{slug(concept['concept_id'])}"
+    )
     run_dir = account_dir / "runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     write_json(run_dir / "autopilot_plan.json", plan)
 
     wrapper_path = require_inside(account_dir, resolve_path(account_dir, str(concept["v3_config"])), "V3 wrapper")
     wrapper_config = read_json(wrapper_path)
-    source_config_path = require_inside(
-        account_dir,
-        resolve_path(wrapper_path.parent, str(wrapper_config["source_config"])),
-        "V3 source config",
-    )
-    source_config = read_json(source_config_path)
+    if generation_request:
+        source_config = dict(generation_request["source_config"])
+        source_config_path = run_dir / "dashboard_source_config.json"
+        write_json(source_config_path, source_config)
+    else:
+        source_config_path = require_inside(
+            account_dir,
+            resolve_path(wrapper_path.parent, str(wrapper_config["source_config"])),
+            "V3 source config",
+        )
+        source_config = read_json(source_config_path)
     assert_account_id(source_config, account_id, source_config_path.name)
 
     v3_manifest = run_checked(
@@ -551,6 +571,32 @@ def select_concept(config: dict[str, Any], *, cycle_index: int, forced_id: str) 
                 return dict(concept)
         raise AccountAutopilotError(f"Unknown concept_id: {forced_id}")
     return dict(concepts[cycle_index % len(concepts)])
+
+
+def load_generation_request(path_value: str, *, expected_account_id: str) -> dict[str, Any]:
+    if not path_value.strip():
+        return {}
+    path = Path(path_value).resolve()
+    request = read_json(path)
+    account_id = normalize_account_id(str(request.get("account_id") or ""))
+    if account_id != expected_account_id:
+        raise AccountAutopilotError(
+            f"Dashboard request account_id={account_id} does not match selected account {expected_account_id}."
+        )
+    source = request.get("source_config")
+    if not isinstance(source, dict):
+        raise AccountAutopilotError("Dashboard request requires source_config object.")
+    source_account = normalize_account_id(str(source.get("account_id") or ""))
+    if source_account != expected_account_id:
+        raise AccountAutopilotError("Dashboard source_config belongs to a different account.")
+    raw_concept_id = str(request.get("concept_id") or source.get("concept_id") or "").strip()
+    if not raw_concept_id:
+        raise AccountAutopilotError("Dashboard request requires concept_id.")
+    concept_id = slug(raw_concept_id)
+    for key in ("hooks", "mains", "ctas"):
+        if not isinstance(source.get(key), list) or not source[key]:
+            raise AccountAutopilotError(f"Dashboard source_config requires non-empty {key}.")
+    return {**request, "account_id": account_id, "concept_id": concept_id, "source_config": source}
 
 
 def is_due(today: date, *, start_date: date, interval_days: int) -> bool:

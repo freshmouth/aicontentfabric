@@ -1,9 +1,7 @@
 name: Multi-Account V3 Autopilot
+run-name: Factory ${{ inputs.account || 'all-due' }} - ${{ inputs.request_id || github.run_number }}
 
 on:
-  schedule:
-    # Runs daily at 10:30 Mexico City time. Each account decides whether it is due.
-    - cron: "30 16 * * *"
   workflow_dispatch:
     inputs:
       account:
@@ -38,9 +36,25 @@ on:
         description: "Optional ISO-8601 publish datetime override for a single-account run"
         required: false
         default: ""
+      request_id:
+        description: "Dashboard request id for status reconciliation"
+        required: false
+        default: ""
+      request_payload_b64:
+        description: "Base64-encoded account-scoped V3 generation request"
+        required: false
+        default: ""
+      skip_publish:
+        description: "Generate assets without scheduling or publishing"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
 
 concurrency:
-  group: multi-account-v3-autopilot
+  group: account-v3-${{ inputs.account || 'all-due' }}
   cancel-in-progress: false
 
 jobs:
@@ -76,6 +90,7 @@ jobs:
       SPELIERS_METRICOOL_API_TOKEN: ${{ secrets.SPELIERS_METRICOOL_API_TOKEN }}
       SPELIERS_METRICOOL_USER_ID: ${{ secrets.SPELIERS_METRICOOL_USER_ID }}
       SPELIERS_METRICOOL_BLOG_ID: ${{ secrets.SPELIERS_METRICOOL_BLOG_ID }}
+      FACTORY_REQUEST_PAYLOAD_B64: ${{ inputs.request_payload_b64 }}
 
     steps:
       - name: Check out repository
@@ -158,8 +173,16 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.publish_at }}" ]]; then
             ARGS+=(--publish-at "${{ inputs.publish_at }}")
           fi
-          if [[ "${{ github.event_name }}" == "schedule" ]]; then
-            ARGS+=(--continue-on-error)
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${FACTORY_REQUEST_PAYLOAD_B64:-}" ]]; then
+            REQUEST_FILE="$RUNNER_TEMP/factory-dashboard-request.json"
+            printf '%s' "$FACTORY_REQUEST_PAYLOAD_B64" | base64 --decode > "$REQUEST_FILE"
+            ARGS+=(--request-file "$REQUEST_FILE")
+          fi
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.request_id }}" ]]; then
+            ARGS+=(--request-id "${{ inputs.request_id }}")
+          fi
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.skip_publish }}" == "true" ]]; then
+            ARGS+=(--skip-publish)
           fi
           python tools/account_autopilot.py "${ARGS[@]}"
 

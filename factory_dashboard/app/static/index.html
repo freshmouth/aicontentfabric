@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f5f2">
+  <title>AI Content Factory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/app.css">
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-lockup">
+        <div class="brand-mark">AF</div>
+        <div>
+          <strong>AI Content Factory</strong>
+          <span>Cloud control plane</span>
+        </div>
+      </div>
+
+      <nav class="primary-nav" aria-label="Primary navigation">
+        <button class="nav-item active" data-view="overview"><i data-lucide="layout-dashboard"></i><span>Overview</span></button>
+        <button class="nav-item" data-view="creative"><i data-lucide="sparkles"></i><span>Creative lab</span></button>
+        <button class="nav-item" data-view="queue"><i data-lucide="list-video"></i><span>Generation queue</span></button>
+        <button class="nav-item" data-view="schedule"><i data-lucide="calendar-clock"></i><span>Schedules</span></button>
+      </nav>
+
+      <div class="account-list-heading">
+        <span>Accounts</span>
+        <button class="icon-button" id="refreshButton" title="Refresh data"><i data-lucide="refresh-cw"></i></button>
+      </div>
+      <div id="accountList" class="account-list"></div>
+
+      <div class="sidebar-foot">
+        <span class="cloud-dot"></span>
+        <div><strong>Cloud connected</strong><span id="serverClock">Checking...</span></div>
+      </div>
+    </aside>
+
+    <main class="main-stage">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow" id="accountEyebrow">Account workspace</div>
+          <h1 id="accountTitle">Content operations</h1>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-button mobile-menu" id="menuButton" title="Open navigation"><i data-lucide="menu"></i></button>
+          <button class="button secondary" id="newDraftButton"><i data-lucide="file-plus-2"></i><span>New draft</span></button>
+          <button class="button primary" id="quickGenerateButton"><i data-lucide="play"></i><span>Generate video</span></button>
+        </div>
+      </header>
+
+      <section class="status-strip" id="statusStrip">
+        <div><span>Pipeline</span><strong id="pipelineStatus">Loading</strong></div>
+        <div><span>Cadence</span><strong id="cadenceValue">-</strong></div>
+        <div><span>Next publish</span><strong id="publishValue">-</strong></div>
+        <div><span>Destinations</span><strong id="platformValue">-</strong></div>
+      </section>
+
+      <section class="view active" id="view-overview">
+        <div class="section-header">
+          <div><h2>Live operations</h2><p>Generation, approvals, and publishing for the selected account.</p></div>
+          <button class="icon-button" id="overviewRefresh" title="Refresh operations"><i data-lucide="rotate-cw"></i></button>
+        </div>
+        <div class="metric-grid">
+          <div class="metric"><span>Active jobs</span><strong id="activeJobs">0</strong><small>Rendering or queued</small></div>
+          <div class="metric"><span>Ready drafts</span><strong id="draftCount">0</strong><small>Awaiting generation</small></div>
+          <div class="metric"><span>Published cadence</span><strong id="cadenceMetric">-</strong><small>Cloud managed</small></div>
+          <div class="metric"><span>Success rate</span><strong id="successRate">-</strong><small>Recent completed jobs</small></div>
+        </div>
+
+        <div class="operations-grid">
+          <section class="panel queue-panel">
+            <div class="panel-heading"><div><h3>Recent generation</h3><p>Live GitHub Actions execution state</p></div><button class="text-button" data-view-jump="queue">View all</button></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Concept</th><th>Status</th><th>Publish</th><th>Started</th><th></th></tr></thead>
+                <tbody id="recentJobs"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel activity-panel">
+            <div class="panel-heading"><div><h3>Draft workspace</h3><p>Latest account-specific creative versions</p></div><button class="text-button" data-view-jump="creative">Open lab</button></div>
+            <div id="recentDrafts" class="draft-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="view-creative">
+        <div class="creative-layout">
+          <section class="draft-rail">
+            <div class="section-header compact"><div><h2>Creative drafts</h2><p>Every revision is cloud-saved.</p></div><button class="icon-button" id="addDraftIcon" title="Create draft"><i data-lucide="plus"></i></button></div>
+            <div id="draftRail" class="draft-list rail-list"></div>
+          </section>
+
+          <section class="creative-workbench">
+            <div class="workbench-header">
+              <div><span class="eyebrow">ChatGPT creative director</span><h2 id="draftTitle">New concept</h2></div>
+              <div class="segmented" aria-label="Draft status"><button data-status="draft" class="active">Draft</button><button data-status="approved">Approved</button></div>
+            </div>
+            <div id="chatHistory" class="chat-history">
+              <div class="empty-chat"><i data-lucide="message-square-text"></i><h3>Shape the next video</h3><p>Describe the topic, hook, pacing, visual direction, CTA, or a correction to an existing draft.</p></div>
+            </div>
+            <form id="chatForm" class="composer">
+              <textarea id="chatInput" rows="3" placeholder="Create a 30-second controversial supermarket swap with a visual pattern interrupt..."></textarea>
+              <div class="composer-foot">
+                <span id="chatHint">Account identity and V3 rules are applied automatically.</span>
+                <button class="button primary" type="submit" id="sendChat"><i data-lucide="arrow-up"></i><span>Send</span></button>
+              </div>
+            </form>
+          </section>
+
+          <aside class="inspector">
+            <div class="section-header compact"><div><h2>Generation setup</h2><p>Review before dispatch.</p></div></div>
+            <label>Publish date and time<input type="datetime-local" id="publishAt"></label>
+            <div class="field-group"><span>Mode</span><div class="segmented full"><button id="testMode" class="active">Test</button><button id="liveMode">Live publish</button></div></div>
+            <label class="toggle-row"><span><strong>Skip publishing</strong><small>Generate the final video only</small></span><input type="checkbox" id="skipPublish"></label>
+            <div class="inspector-summary">
+              <div><span>Scenes</span><strong id="sceneCount">-</strong></div>
+              <div><span>Est. duration</span><strong id="durationEstimate">-</strong></div>
+              <div><span>Version</span><strong id="draftVersion">-</strong></div>
+            </div>
+            <button class="button primary full-width" id="dispatchButton"><i data-lucide="rocket"></i><span>Send to cloud</span></button>
+            <button class="button secondary full-width" id="saveDraftButton"><i data-lucide="save"></i><span>Save changes</span></button>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="view-queue">
+        <div class="section-header"><div><h2>Generation queue</h2><p>Cloud execution and publishing status for this account.</p></div><button class="button secondary" id="queueRefresh"><i data-lucide="refresh-cw"></i><span>Refresh</span></button></div>
+        <section class="panel">
+          <div class="table-wrap wide-table">
+            <table><thead><tr><th>Job</th><th>Concept</th><th>Status</th><th>Mode</th><th>Publish at</th><th>Updated</th><th></th></tr></thead><tbody id="allJobs"></tbody></table>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" id="view-schedule">
+        <div class="section-header"><div><h2>Autopilot schedule</h2><p>Cloud cadence is evaluated per account with duplicate-run protection.</p></div></div>
+        <section class="schedule-band">
+          <div class="schedule-form">
+            <label class="toggle-row"><span><strong>Autopilot enabled</strong><small>Allow cloud scheduler to queue due videos</small></span><input type="checkbox" id="scheduleEnabled"></label>
+            <label>Run every<input type="number" id="intervalDays" min="1" max="365"><span class="input-suffix">days</span></label>
+            <label>Publish time<input type="time" id="scheduleTime"></label>
+            <label>Timezone<input type="text" id="scheduleTimezone"></label>
+            <button class="button primary" id="saveSchedule"><i data-lucide="calendar-check"></i><span>Save schedule</span></button>
+          </div>
+          <div class="schedule-note">
+            <i data-lucide="shield-check"></i>
+            <div><strong>Account isolation enforced</strong><p>Creative assets, credentials, drafts, queues, and Metricool destinations remain scoped to the selected account.</p></div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+  <div class="auth-screen hidden" id="authScreen">
+    <form id="authForm" class="auth-dialog">
+      <div class="brand-mark">AF</div><h2>Open the factory</h2><p>Enter the dashboard access token.</p>
+      <input type="password" id="tokenInput" autocomplete="current-password" placeholder="Access token">
+      <button class="button primary full-width" type="submit"><i data-lucide="log-in"></i><span>Continue</span></button>
+    </form>
+  </div>
+</body>
+</html>

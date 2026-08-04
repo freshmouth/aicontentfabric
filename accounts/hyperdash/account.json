@@ -1,0 +1,16 @@
+{
+  "account_id": "hyperdash",
+  "display_name": "HyperDash",
+  "status": "draft",
+  "pipeline": "v3",
+  "description": "Independent account for the HyperDash mobile cardio game. No health-character assets or publishing credentials.",
+  "legacy_paths": {
+    "source_project": "HyperDash"
+  },
+  "paths": {
+    "prompts": "accounts/hyperdash/prompts",
+    "content_library": "accounts/hyperdash/content_library",
+    "runs": "accounts/hyperdash/runs",
+    "logs": "accounts/hyperdash/logs"
+  }
+}

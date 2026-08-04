@@ -1,0 +1,24 @@
+{
+  "account_id": "sarah_cole",
+  "display_name": "Sarah Cole",
+  "status": "draft",
+  "pipeline": "v3",
+  "description": "Independent account for Sarah Cole, functional health coach. No Claire, Beyond The Label, HyperDash, Sal Celtica, or Speliers assets or publishing credentials.",
+  "character": {
+    "character_id": "sarah_cole",
+    "metadata_path": "accounts/sarah_cole/character/character.json",
+    "master_reference": "accounts/sarah_cole/character/master_reference.png",
+    "legacy_character_path": "characters/sarah_cole"
+  },
+  "legacy_paths": {
+    "character": "characters/sarah_cole",
+    "daily_factory_config": "daily_factory/config.sarah_cole_test.json",
+    "content_queue": "daily_factory/content_queue.sarah_cole.json"
+  },
+  "paths": {
+    "prompts": "accounts/sarah_cole/prompts",
+    "content_library": "accounts/sarah_cole/content_library",
+    "runs": "accounts/sarah_cole/runs",
+    "logs": "accounts/sarah_cole/logs"
+  }
+}

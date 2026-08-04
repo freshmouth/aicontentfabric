@@ -1,0 +1,80 @@
+name: Deploy Factory Dashboard
+run-name: Dashboard deploy - ${{ github.sha }}
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "factory_dashboard/**"
+      - "accounts/registry.json"
+      - "accounts/*/account.json"
+      - ".github/workflows/dashboard-deploy.yml"
+
+concurrency:
+  group: factory-dashboard-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v3
+        with:
+          project_id: ai-content-factory-501821
+          workload_identity_provider: projects/529307215825/locations/global/workloadIdentityPools/github-actions/providers/aicontentfabric
+          service_account: daily-factory@ai-content-factory-501821.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Configure Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+      - name: Build dashboard image
+        env:
+          IMAGE: us-central1-docker.pkg.dev/ai-content-factory-501821/ai-content-factory/factory-dashboard:${{ github.sha }}
+        run: docker build -f factory_dashboard/Dockerfile -t "$IMAGE" .
+      - name: Push dashboard image
+        env:
+          IMAGE: us-central1-docker.pkg.dev/ai-content-factory-501821/ai-content-factory/factory-dashboard:${{ github.sha }}
+        run: docker push "$IMAGE"
+      - name: Deploy dashboard to Cloud Run
+        env:
+          IMAGE: us-central1-docker.pkg.dev/ai-content-factory-501821/ai-content-factory/factory-dashboard:${{ github.sha }}
+        run: >-
+          gcloud run deploy factory-dashboard
+          --project ai-content-factory-501821
+          --image "$IMAGE"
+          --region us-central1
+          --platform managed
+          --allow-unauthenticated
+          --service-account daily-factory@ai-content-factory-501821.iam.gserviceaccount.com
+          --set-env-vars DASHBOARD_STORE=firestore,GOOGLE_CLOUD_PROJECT=ai-content-factory-501821,GITHUB_OWNER=freshmouth,GITHUB_REPO=aicontentfabric,GITHUB_WORKFLOW=account-autopilot.yml,GITHUB_BRANCH=main
+          --set-secrets DASHBOARD_ADMIN_TOKEN=factory-dashboard-admin-token:latest,DASHBOARD_CRON_TOKEN=factory-dashboard-cron-token:latest,OPENAI_API_KEY=openai-api-key:latest,GITHUB_DASHBOARD_TOKEN=factory-dashboard-github-token:latest
+          --min-instances 0
+          --max-instances 3
+          --memory 1Gi
+          --cpu 1
+          --timeout 300
+      - name: Configure cloud scheduler
+        shell: bash
+        run: |
+          URL="$(gcloud run services describe factory-dashboard --project ai-content-factory-501821 --region us-central1 --format='value(status.url)')"
+          CRON_TOKEN="$(gcloud secrets versions access latest --project ai-content-factory-501821 --secret factory-dashboard-cron-token)"
+          COMMON=(
+            --project ai-content-factory-501821
+            --location us-central1
+            --schedule "5 8 * * *"
+            --time-zone "America/Mexico_City"
+            --uri "$URL/api/system/tick"
+            --http-method POST
+            --headers "X-Factory-Cron=$CRON_TOKEN"
+            --attempt-deadline 300s
+          )
+          if gcloud scheduler jobs describe factory-dashboard-tick --project ai-content-factory-501821 --location us-central1 >/dev/null 2>&1; then
+            gcloud scheduler jobs update http factory-dashboard-tick "${COMMON[@]}"
+          else
+            gcloud scheduler jobs create http factory-dashboard-tick "${COMMON[@]}"
+          fi

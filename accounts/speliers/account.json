@@ -1,0 +1,14 @@
+{
+  "account_id": "speliers",
+  "display_name": "Speliers",
+  "status": "draft",
+  "pipeline": "v3",
+  "description": "Independent Speliers account. Assets, prompts, queue, runs, logs, and publishing credentials must remain isolated from all other accounts.",
+  "paths": {
+    "prompts": "accounts/speliers/prompts",
+    "content_library": "accounts/speliers/content_library",
+    "runs": "accounts/speliers/runs",
+    "logs": "accounts/speliers/logs",
+    "ai_chat_flow": "accounts/speliers/ai_chat_flow"
+  }
+}

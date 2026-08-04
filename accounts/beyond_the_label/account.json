@@ -1,0 +1,16 @@
+{
+  "account_id": "beyond_the_label",
+  "display_name": "Beyond The Label",
+  "status": "draft",
+  "pipeline": "v3",
+  "description": "Independent account for kombucha/SCOBY and label-truth content. No Claire assets or publishing credentials.",
+  "legacy_paths": {
+    "source_project": "Mix"
+  },
+  "paths": {
+    "prompts": "accounts/beyond_the_label/prompts",
+    "content_library": "accounts/beyond_the_label/content_library",
+    "runs": "accounts/beyond_the_label/runs",
+    "logs": "accounts/beyond_the_label/logs"
+  }
+}

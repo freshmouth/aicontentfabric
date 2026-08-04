@@ -1,0 +1,40 @@
+substitutions:
+  _REGION: us-central1
+  _REPOSITORY: ai-content-factory
+  _SERVICE: factory-dashboard
+  _RUNTIME_SERVICE_ACCOUNT: daily-factory@ai-content-factory-501821.iam.gserviceaccount.com
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - factory_dashboard/Dockerfile
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --service-account=${_RUNTIME_SERVICE_ACCOUNT}
+      - --set-env-vars=DASHBOARD_STORE=firestore,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GITHUB_OWNER=freshmouth,GITHUB_REPO=aicontentfabric,GITHUB_WORKFLOW=account-autopilot.yml,GITHUB_BRANCH=main
+      - --set-secrets=DASHBOARD_ADMIN_TOKEN=factory-dashboard-admin-token:latest,DASHBOARD_CRON_TOKEN=factory-dashboard-cron-token:latest,OPENAI_API_KEY=openai-api-key:latest,GITHUB_DASHBOARD_TOKEN=factory-dashboard-github-token:latest
+      - --min-instances=0
+      - --max-instances=3
+      - --memory=1Gi
+      - --cpu=1
+      - --timeout=300
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
