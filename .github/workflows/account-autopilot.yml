@@ -26,6 +26,14 @@ on:
         options:
           - "false"
           - "true"
+      plan_only:
+        description: "Validate cloud auth, account config, and cadence without generation"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
 
 concurrency:
   group: multi-account-v3-autopilot
@@ -115,6 +123,12 @@ jobs:
             exit 1
           fi
 
+      - name: Validate Google Omni ADC
+        run: >-
+          python -c "from pipeline_google_omni_stack.adapters.google_omni_flash import get_access_token;
+          assert get_access_token('GOOGLE_OAUTH_ACCESS_TOKEN');
+          print('Google Omni ADC ready')"
+
       - name: Run account autopilot
         shell: bash
         run: |
@@ -129,6 +143,9 @@ jobs:
           fi
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.dry_run }}" == "true" ]]; then
             ARGS+=(--dry-run)
+          fi
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.plan_only }}" == "true" ]]; then
+            ARGS+=(--plan-only)
           fi
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
             ARGS+=(--continue-on-error)
