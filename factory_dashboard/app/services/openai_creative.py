@@ -41,7 +41,6 @@ class OpenAICreativeService:
         payload = {
             "model": self.model,
             "input": [{"role": "user", "content": content}],
-            "max_output_tokens": 4500,
             "text": {"format": {"type": "json_object"}},
         }
         request = urllib.request.Request(
