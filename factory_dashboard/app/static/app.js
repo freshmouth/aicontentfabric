@@ -224,6 +224,7 @@ function renderWorkbench() {
   $("#dispatchButton").disabled = !draft;
   $("#saveDraftButton").disabled = !draft;
   $$('[data-agent-action]').forEach((button) => button.addEventListener("click", () => runAgentAction(button.dataset.agentAction)));
+  $$('[data-open-queue]').forEach((button) => button.addEventListener("click", () => showView("queue")));
   if (window.lucide) window.lucide.createIcons();
 }
 
@@ -259,11 +260,14 @@ async function sendChat(event) {
     }, (status) => thinking.update(status));
     const index = state.drafts.findIndex((draft) => draft.id === data.draft.id);
     if (index >= 0) state.drafts[index] = data.draft; else state.drafts.unshift(data.draft);
+    if (data.job && !state.jobs.some((job) => job.id === data.job.id)) state.jobs.unshift(data.job);
     state.selectedDraftId = data.draft.id;
     $("#chatInput").value = "";
     clearPendingAttachments();
     render();
-    toast("Creative draft saved to the cloud.");
+    if (data.execution?.status === "failed") toast(data.execution.message, true);
+    else if (data.job) toast("Production job queued in the cloud.");
+    else toast("Creative draft saved to the cloud.");
   } catch (error) {
     thinking.fail(error.message);
     toast(error.message, true);
@@ -377,7 +381,23 @@ function renderChatMessage(message) {
     : "";
   const avatar = message.role === "assistant" ? `<span class="agent-avatar"><i data-lucide="sparkles"></i></span>` : "";
   const label = message.role === "assistant" ? `<span class="message-role">Creative agent</span>` : "";
-  return `<div class="message-row ${message.role}">${avatar}<div class="message ${message.role}">${label}<div class="message-copy">${escapeHtml(message.content)}</div>${attachments ? `<div class="message-attachments">${attachments}</div>` : ""}${actions}</div></div>`;
+  const execution = message.execution ? renderExecutionStatus(message.execution) : "";
+  return `<div class="message-row ${message.role}">${avatar}<div class="message ${message.role}">${label}<div class="message-copy">${escapeHtml(message.content)}</div>${attachments ? `<div class="message-attachments">${attachments}</div>` : ""}${execution}${actions}</div></div>`;
+}
+
+function renderExecutionStatus(execution) {
+  const queued = execution.status === "queued";
+  const title = queued
+    ? (execution.action === "generate_and_publish" ? "Omni + Metricool queued" : "Omni production queued")
+    : "Production was not queued";
+  const detail = queued
+    ? `${execution.job_id || "Cloud job"}${execution.publish_at ? ` · ${formatDate(execution.publish_at)}` : ""}`
+    : execution.message;
+  return `<div class="execution-status ${queued ? "queued" : "failed"}">
+    <i data-lucide="${queued ? "cloud-cog" : "circle-alert"}"></i>
+    <div><strong>${escapeHtml(title)}</strong><span>${escapeHtml(detail)}</span></div>
+    ${queued ? `<button type="button" data-open-queue title="Open generation queue"><i data-lucide="arrow-right"></i></button>` : ""}
+  </div>`;
 }
 
 function renderCreativeBlueprint(draft) {

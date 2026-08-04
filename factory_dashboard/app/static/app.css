@@ -151,6 +151,16 @@ tbody tr:last-child td { border-bottom: 0; }
 .agent-avatar svg { width: 14px; height: 14px; }
 .agent-avatar.working { animation: agent-pulse 1.8s ease-in-out infinite; }
 .agent-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--line); }
+.execution-status { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 9px; margin-top: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.execution-status > svg { width: 16px; height: 16px; }
+.execution-status.queued > svg { color: var(--green); }
+.execution-status.failed { border-color: #e0c1bb; background: #fbf2f0; }
+.execution-status.failed > svg { color: #9b4638; }
+.execution-status strong, .execution-status span { display: block; }
+.execution-status strong { font-size: 10px; }
+.execution-status span { margin-top: 2px; color: var(--muted); font-size: 9px; }
+.execution-status button { width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: var(--surface); }
+.execution-status button svg { width: 13px; height: 13px; }
 .agent-thinking { min-width: 320px; }
 .thinking-status { display: flex; align-items: center; gap: 9px; color: var(--muted); }
 .thinking-dots { display: inline-flex; align-items: center; gap: 3px; }

@@ -94,6 +94,41 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(call["account_id"], "sal_celtica")
         self.assertEqual(call["payload"]["source_config"]["account_id"], "sal_celtica")
 
+    def test_agent_chat_can_queue_omni_generation(self):
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "account_id": "sal_celtica",
+                "message": "Generate the video with Omni, captions, visual hook, music, and assembly.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIsNotNone(payload["job"])
+        self.assertEqual(payload["execution"]["action"], "generate_only")
+        self.assertEqual(payload["execution"]["status"], "queued")
+        self.assertTrue(payload["job"]["skip_publish"])
+        self.assertFalse(main.github.calls[-1]["dry_run"])
+        self.assertTrue(main.github.calls[-1]["skip_publish"])
+
+    def test_agent_chat_can_queue_metricool_publish(self):
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "account_id": "sal_celtica",
+                "message": "Generate this reel and publish it through Metricool now.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["execution"]["action"], "generate_and_publish")
+        self.assertEqual(payload["execution"]["status"], "queued")
+        self.assertFalse(payload["job"]["skip_publish"])
+        self.assertFalse(main.github.calls[-1]["dry_run"])
+        self.assertFalse(main.github.calls[-1]["skip_publish"])
+
     def test_streaming_chat_returns_progress_and_agent_actions(self):
         response = self.client.post(
             "/api/chat/stream",

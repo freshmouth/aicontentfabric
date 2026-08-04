@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime
 from pathlib import Path
@@ -247,7 +248,75 @@ def process_chat(request: ChatRequest) -> dict[str, Any]:
         updated_at=now,
     ).model_dump()
     store.put("drafts", record["id"], record)
-    return {"assistant_message": response.get("assistant_message"), "draft": record}
+    execution = detect_execution_request(response, request.message, current is not None)
+    job = None
+    if execution["action"] != "none":
+        generation_request = GenerateRequest(
+            publish_at=execution.get("publish_at"),
+            dry_run=False,
+            skip_publish=execution["action"] == "generate_only",
+        )
+        try:
+            job = queue_draft(record, generation_request)
+            execution.update(
+                {
+                    "status": "queued",
+                    "job_id": job["id"],
+                    "message": execution_success_message(execution["action"], job),
+                }
+            )
+        except (HTTPException, GitHubActionsError) as exc:
+            detail = str(exc.detail) if isinstance(exc, HTTPException) else str(exc)
+            execution.update({"status": "failed", "message": detail})
+        record["chat_history"][-1]["execution"] = execution
+        record["chat_history"][-1]["content"] += f"\n\n{execution['message']}"
+        record["updated_at"] = utc_now()
+        store.put("drafts", record["id"], record)
+    return {
+        "assistant_message": record["chat_history"][-1]["content"],
+        "draft": record,
+        "execution": execution,
+        "job": job,
+    }
+
+
+def detect_execution_request(response: dict[str, Any], message: str, has_current_draft: bool) -> dict[str, Any]:
+    text = message.casefold()
+    requested = response.get("execution_request") if isinstance(response.get("execution_request"), dict) else {}
+    model_action = str(requested.get("action") or "none").strip().lower()
+    continuation = bool(re.search(r"\b(proceed|go ahead|run it|do it|start it|launch it)\b", text))
+    generate_requested = bool(
+        re.search(r"\b(generate|render|assemble|run|launch)\b", text)
+        or re.search(r"\b(?:produce|create|build)\b.{0,30}\b(?:video|reel|clips?|assets?)\b", text)
+        or (has_current_draft and continuation)
+    )
+    publish_requested = bool(re.search(r"\b(publish|post|schedule|metricool)\b", text))
+    block_generate = bool(re.search(r"\b(?:do not|don't|dont|without)\s+(?:generate|render|run|launch)\b", text))
+    block_publish = bool(re.search(r"\b(?:do not|don't|dont|without)\s+(?:publish|post|schedule)\b", text))
+    generate_requested = generate_requested and not block_generate
+    publish_requested = publish_requested and not block_publish
+
+    action = "none"
+    if publish_requested:
+        action = "generate_and_publish"
+    elif generate_requested or (continuation and model_action == "generate_only"):
+        action = "generate_only"
+
+    publish_at = requested.get("publish_at") if action == "generate_and_publish" else None
+    if publish_at:
+        try:
+            datetime.fromisoformat(str(publish_at))
+        except ValueError:
+            publish_at = None
+    return {"action": action, "publish_at": publish_at, "status": "not_requested" if action == "none" else "pending"}
+
+
+def execution_success_message(action: str, job: dict[str, Any]) -> str:
+    if action == "generate_and_publish":
+        destination = "Metricool after rendering"
+        timing = f" for {job['publish_at']}" if job.get("publish_at") else " at the next immediate publish slot"
+        return f"Production job {job['id']} is queued. Google Omni generation and assembly will run in the cloud, then send the finished reel to {destination}{timing}."
+    return f"Production job {job['id']} is queued. Google Omni generation, captions, visual hook, music, and final assembly will run in the cloud without publishing."
 
 
 def resolve_attachments(account_id: str, attachment_ids: list[str]) -> list[dict[str, Any]]:
@@ -394,14 +463,21 @@ def queue_draft(draft: dict[str, Any], request: GenerateRequest, *, job_id: str 
         updated_at=now,
     ).model_dump()
     store.put("jobs", job_id, job)
-    github.dispatch(
-        request_id=job_id,
-        account_id=account_id,
-        payload=payload,
-        publish_at=request.publish_at,
-        dry_run=request.dry_run,
-        skip_publish=request.skip_publish,
-    )
+    try:
+        github.dispatch(
+            request_id=job_id,
+            account_id=account_id,
+            payload=payload,
+            publish_at=request.publish_at,
+            dry_run=request.dry_run,
+            skip_publish=request.skip_publish,
+        )
+    except GitHubActionsError as exc:
+        job["status"] = "failed"
+        job["error_code"] = str(exc)[:500]
+        job["updated_at"] = utc_now()
+        store.put("jobs", job_id, job)
+        raise
     return job
 
 

@@ -144,6 +144,10 @@ Return only valid JSON with this shape:
 {{
   "assistant_message": "a conversational and useful response that directly answers the user; include the actual hook, script, scene arc, critique, or options when relevant rather than a generic confirmation",
   "suggested_actions": ["2-4 concise follow-up commands tailored to this draft"],
+  "execution_request": {{
+    "action": "none | generate_only | generate_and_publish",
+    "publish_at": null
+  }},
   "title": "working title",
   "brief": "concise creative brief",
   "caption": "short contextual social caption with the same CTA but not a transcript",
@@ -160,6 +164,11 @@ Return only valid JSON with this shape:
     "variants": {{"count":1,"min_total_seconds":25,"max_total_seconds":45,"seed":20260804,"stitch_leaf_segments":true}}
   }}
 }}
+
+Set execution_request.action to generate_only only when the latest user message explicitly asks to generate,
+render, assemble, run, or proceed with the video. Set it to generate_and_publish only when the latest message
+explicitly asks to publish, post, send to Metricool, or schedule the finished video. Otherwise use none. Never claim
+an execution succeeded; the control plane performs and reports that action after your response is validated.
 """.strip()
 
 
