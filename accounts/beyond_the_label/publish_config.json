@@ -1,0 +1,45 @@
+{
+  "account_id": "beyond_the_label",
+  "display_name": "Beyond The Label",
+  "publisher": "metricool",
+  "require_video_manifest": false,
+  "metricool": {
+    "base_url": "https://app.metricool.com/api",
+    "user_id": "BEYOND_THE_LABEL_METRICOOL_USER_ID",
+    "blog_id": "BEYOND_THE_LABEL_METRICOOL_BLOG_ID",
+    "api_token_env": "BEYOND_THE_LABEL_METRICOOL_API_TOKEN",
+    "timezone": "America/Mexico_City",
+    "networks": {
+      "instagram": "instagram",
+      "facebook": "facebook"
+    },
+    "post_types": {
+      "instagram": "REEL",
+      "facebook": "REEL"
+    },
+    "auto_publish": true,
+    "draft": false,
+    "show_reel_on_feed": true,
+    "save_external_media_files": true,
+    "video_cover_milliseconds": 0
+  },
+  "meta_graph": {
+    "graph_version": "v23.0",
+    "instagram_user_id": "BEYOND_THE_LABEL_INSTAGRAM_USER_ID",
+    "instagram_access_token_env": "BEYOND_THE_LABEL_INSTAGRAM_ACCESS_TOKEN",
+    "instagram_api_base": "auto",
+    "facebook_page_id": "BEYOND_THE_LABEL_FACEBOOK_PAGE_ID",
+    "facebook_access_token_env": "BEYOND_THE_LABEL_FACEBOOK_PAGE_ACCESS_TOKEN",
+    "facebook_mode": "reels",
+    "poll_seconds": 8,
+    "timeout_seconds": 900
+  },
+  "google_cloud_storage": {
+    "enabled": true,
+    "bucket": "ai-content-factory-501821-omni-outputs",
+    "prefix": "accounts/beyond_the_label/meta-reels",
+    "url_mode": "public",
+    "make_public": true,
+    "signed_url_duration": "2h"
+  }
+}

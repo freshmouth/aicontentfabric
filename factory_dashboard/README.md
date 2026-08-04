@@ -8,6 +8,7 @@ The dashboard is a separate cloud control plane for the existing account-isolate
 - Per-account cadence overrides
 - ChatGPT-generated V3 creative drafts
 - Account-scoped photo references for new drafts and revisions
+- Manual drafts, direct cloud generation, and Metricool publishing without an autopilot manifest
 - Versioned revisions and approvals
 - Test or live cloud generation
 - GitHub Actions execution status
@@ -15,6 +16,16 @@ The dashboard is a separate cloud control plane for the existing account-isolate
 - Cloud scheduler ticks with duplicate-run protection
 
 Every draft and job contains one `account_id`. The API rejects a request when the selected account and V3 source config do not match. Social credentials remain in GitHub/Cloud secrets and are never stored in Firestore drafts.
+
+## Manual Mode Versus Autopilot
+
+Every registered account with an `account.json` is **manual ready**. It can use Creative Lab, generate a one-off V3 video, and publish or schedule that result through its own `publish_config.json`. It does not need `autopilot_v3.json`.
+
+`autopilot_v3.json` is required only for recurring unattended concept rotation. The cloud scheduler ignores manual-only accounts. Enabling recurring scheduling from the dashboard is rejected until the selected account has a resolvable autopilot manifest.
+
+When a manual live-publish job has no explicit publish time, the worker schedules it through Metricool ten minutes after media generation completes. Attached dashboard photos are downloaded from the selected account's private Cloud Storage prefix and passed into first-frame generation as visual references.
+
+Metricool API tokens, user IDs, and blog IDs remain GitHub secrets. The committed account `publish_config.json` contains environment-variable names and destination routing only, never credentials.
 
 ## Local Run
 

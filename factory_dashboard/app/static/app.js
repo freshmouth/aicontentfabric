@@ -103,7 +103,7 @@ function render() {
   renderSchedule(account);
   if (!state.selectedDraftId && state.drafts.length) state.selectedDraftId = state.drafts[0].id;
   renderWorkbench();
-  $("#quickGenerateButton").disabled = !account.ready;
+  $("#quickGenerateButton").disabled = !account.creative_ready;
 }
 
 function renderAccounts() {
@@ -162,9 +162,13 @@ function renderWorkbench() {
 
 function renderSchedule(account) {
   $("#scheduleEnabled").checked = account.enabled;
+  $("#scheduleEnabled").disabled = !account.autopilot_ready;
   $("#intervalDays").value = account.interval_days;
   $("#scheduleTime").value = account.publish_time;
   $("#scheduleTimezone").value = account.timezone;
+  $("#scheduleRequirement").textContent = account.autopilot_ready
+    ? "Recurring generation uses this account's approved concept rotation. Manual drafts and direct publishing remain available independently."
+    : "Manual drafts, direct cloud generation, and Metricool publishing are available. Add an autopilot manifest only when you want recurring scheduled generation.";
 }
 
 async function sendChat(event) {

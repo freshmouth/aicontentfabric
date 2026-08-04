@@ -13,7 +13,12 @@ from factory_dashboard.app import main
 from factory_dashboard.app.services.accounts import AccountCatalog
 from factory_dashboard.app.services.attachments import AttachmentStorage
 from factory_dashboard.app.store import LocalJsonStore
-from tools.account_autopilot import AccountAutopilotError, load_generation_request
+from tools.account_autopilot import (
+    AccountAutopilotError,
+    build_manual_execution_config,
+    load_generation_request,
+    run_autopilot,
+)
 
 
 class FakeCreative:
@@ -145,6 +150,71 @@ class DashboardTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 409)
         self.assertIn("different account", response.json()["detail"])
+
+    def test_manual_account_drafts_and_dispatches_without_autopilot(self):
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "account_id": "beyond_the_label",
+                "message": "Create a direct manual draft about a surprising grocery label.",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        draft = response.json()["draft"]
+        self.assertEqual(draft["account_id"], "beyond_the_label")
+        self.assertEqual(draft["creative_spec"]["account_id"], "beyond_the_label")
+
+        queued = self.client.post(
+            f"/api/drafts/{draft['id']}/generate",
+            json={"dry_run": True, "skip_publish": False},
+        )
+        self.assertEqual(queued.status_code, 200)
+        call = main.github.calls[-1]
+        self.assertEqual(call["account_id"], "beyond_the_label")
+        self.assertEqual(call["payload"]["mode"], "manual_dashboard")
+
+    def test_worker_manual_request_does_not_require_autopilot_config(self):
+        account_dir = Path(self.temp.name) / "accounts" / "manual_brand"
+        account_dir.mkdir(parents=True)
+        config = build_manual_execution_config("manual_brand", account_dir)
+        source = {
+            "account_id": "manual_brand",
+            "concept_id": "manual_test",
+            "master_prompt": "Keep this account isolated.",
+            "hooks": [{"id": "h", "script": "Hook", "prompt": "Hook"}],
+            "mains": [{"id": "m", "segments": [{"id": "m1", "script": "Main", "prompt": "Main"}]}],
+            "ctas": [{"id": "c", "script": "CTA", "prompt": "CTA"}],
+        }
+        request = {
+            "account_id": "manual_brand",
+            "concept_id": "manual_test",
+            "caption": "Manual caption",
+            "source_config": source,
+            "reference_attachments": [],
+        }
+        args = SimpleNamespace(
+            request_file="",
+            today="2026-08-04",
+            concept_id="",
+            publish_at="",
+            plan_only=True,
+            force=True,
+            skip_publish=False,
+            dry_run=True,
+            request_id="manual_request",
+        )
+        result = run_autopilot(
+            "manual_brand",
+            account_dir,
+            account_dir / "autopilot_v3.json",
+            config,
+            args,
+            generation_request=request,
+            account_config={"account_id": "manual_brand", "display_name": "Manual Brand"},
+        )
+        self.assertEqual(result["execution_mode"], "manual_dashboard")
+        self.assertEqual(result["concept_id"], "manual_test")
+        self.assertTrue(result["plan_only"])
 
 
 if __name__ == "__main__":

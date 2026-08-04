@@ -1,4 +1,4 @@
-name: Multi-Account V3 Autopilot
+name: Multi-Account V3 Cloud Worker
 run-name: Factory ${{ inputs.account || 'all-due' }} - ${{ inputs.request_id || github.run_number }}
 
 on:
@@ -120,7 +120,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install google-auth requests tzdata
+          python -m pip install google-auth google-cloud-storage requests tzdata
 
       - name: Validate cloud credentials
         shell: bash
@@ -132,14 +132,19 @@ jobs:
             fi
           done
           ACCOUNT="${{ inputs.account }}"
-          if [[ -z "$ACCOUNT" || "$ACCOUNT" == "sal_celtica" ]]; then
-            if [[ -z "${ACCOUNT_PUBLISH_SECRETS_JSON:-}" ]]; then
-              for KEY in SAL_CELTICA_METRICOOL_API_TOKEN SAL_CELTICA_METRICOOL_USER_ID SAL_CELTICA_METRICOOL_BLOG_ID; do
+          if [[ "${{ inputs.skip_publish }}" != "true" && -n "${ACCOUNT_PUBLISH_SECRETS_JSON:-}" ]]; then
+            ACCOUNT_TO_CHECK="${ACCOUNT:-sal_celtica}" python -c "import json,os; a=os.environ['ACCOUNT_TO_CHECK']; b=json.loads(os.environ['ACCOUNT_PUBLISH_SECRETS_JSON']); e=b.get(a) or b.get(a.replace('_','-')) or b.get(a.upper()) or {}; r=('METRICOOL_API_TOKEN','METRICOOL_USER_ID','METRICOOL_BLOG_ID'); raise SystemExit(0 if isinstance(e,dict) and all(e.get(k) or e.get(f'{a.upper()}_{k}') for k in r) else 1)" || MISSING+=("ACCOUNT_PUBLISH_SECRETS_JSON[$ACCOUNT]")
+          elif [[ "${{ inputs.skip_publish }}" != "true" ]]; then
+            PREFIX="${ACCOUNT^^}"
+            if [[ -z "$PREFIX" ]]; then
+              PREFIX="SAL_CELTICA"
+            fi
+            for SUFFIX in METRICOOL_API_TOKEN METRICOOL_USER_ID METRICOOL_BLOG_ID; do
+              KEY="${PREFIX}_${SUFFIX}"
                 if [[ -z "${!KEY:-}" ]]; then
                   MISSING+=("$KEY")
                 fi
-              done
-            fi
+            done
           fi
           if (( ${#MISSING[@]} > 0 )); then
             echo "::error title=Missing GitHub Actions secrets::${MISSING[*]}"

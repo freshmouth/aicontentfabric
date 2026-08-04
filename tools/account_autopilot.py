@@ -132,12 +132,117 @@ def run_one_account(
         raise AccountAutopilotError(f"Missing account.json for {account_id}: {account_config_path}")
     account_config = read_json(account_config_path)
     assert_account_id(account_config, account_id, "account.json")
+    generation_request = load_generation_request(str(args.request_file or ""), expected_account_id=account_id)
     autopilot_path = resolve_autopilot_path(account_id, account_dir, registry_entry)
-    if not autopilot_path.exists():
+    if autopilot_path.exists():
+        autopilot_config = read_json(autopilot_path)
+        assert_account_id(autopilot_config, account_id, "autopilot_v3.json")
+    elif generation_request:
+        autopilot_config = build_manual_execution_config(account_id, account_dir)
+    else:
         raise AccountAutopilotError(f"Missing autopilot config for {account_id}: {autopilot_path}")
-    autopilot_config = read_json(autopilot_path)
-    assert_account_id(autopilot_config, account_id, "autopilot_v3.json")
-    return run_autopilot(account_id, account_dir, autopilot_path, autopilot_config, args)
+    return run_autopilot(
+        account_id,
+        account_dir,
+        autopilot_path,
+        autopilot_config,
+        args,
+        generation_request=generation_request,
+        account_config=account_config,
+    )
+
+
+def build_manual_execution_config(account_id: str, account_dir: Path) -> dict[str, Any]:
+    publish_path = account_dir / "publish_config.json"
+    publish_config = read_json(publish_path) if publish_path.exists() else {}
+    metricool = dict(publish_config.get("metricool") or {})
+    networks = dict(metricool.get("networks") or {})
+    platforms = ",".join(key for key in ("instagram", "facebook") if key in networks) or "instagram,facebook"
+    return {
+        "account_id": account_id,
+        "pipeline": "v3_manual_dashboard",
+        "enabled": True,
+        "timezone": str(metricool.get("timezone") or "America/Mexico_City"),
+        "start_date": datetime.now().date().isoformat(),
+        "interval_days": 1,
+        "publish_time": "12:00",
+        "platforms": platforms,
+        "postprocess_preset": "ugc_soft_30fps",
+        "output_gcs_uri_prefix": (
+            f"gs://ai-content-factory-501821-omni-outputs/accounts/{account_id}/manual-dashboard"
+        ),
+        "first_frame": {
+            "enabled": True,
+            "with_cloudinary_refs": False,
+            "openai_model": "gpt-image-2",
+            "openai_size": "720x1280",
+            "openai_quality": "medium",
+            "timeout_seconds": 300,
+        },
+        "concepts": [],
+    }
+
+
+def build_manual_wrapper(
+    account_id: str,
+    account_config: dict[str, Any],
+    source_config: dict[str, Any],
+) -> dict[str, Any]:
+    display_name = str(account_config.get("display_name") or account_id.replace("_", " ").title())
+    master_prompt = str(source_config.get("master_prompt") or "").strip()
+    return {
+        "schema_version": 3,
+        "name": f"{display_name} dashboard manual generation",
+        "account_id": account_id,
+        "source_config": "dashboard_source_config.json",
+        "subject_label": f"account-specific UGC subject for {display_name}",
+        "subject_placement_hint": (
+            f"Preserve the identity, product, location, voice, and visual continuity defined by this account. "
+            f"{master_prompt}"
+        )[:6000],
+        "cloudinary_max_reference_images": 0,
+    }
+
+
+def download_dashboard_references(
+    account_id: str,
+    generation_request: dict[str, Any],
+    run_dir: Path,
+) -> list[Path]:
+    attachments = list((generation_request or {}).get("reference_attachments") or [])
+    if not attachments:
+        return []
+    try:
+        from google.cloud import storage
+    except ImportError as exc:
+        raise AccountAutopilotError("Dashboard references require google-cloud-storage.") from exc
+    client = storage.Client(project=os.environ.get("GOOGLE_CLOUD_PROJECT") or None)
+    output_dir = run_dir / "dashboard_references"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    downloaded: list[Path] = []
+    expected_prefix = f"factory-dashboard/uploads/{account_id}/"
+    for index, item in enumerate(attachments, start=1):
+        if normalize_account_id(str(item.get("account_id") or "")) != account_id:
+            raise AccountAutopilotError("Dashboard reference belongs to a different account.")
+        uri = str(item.get("storage_uri") or "")
+        if not uri.startswith("gs://"):
+            raise AccountAutopilotError("Dashboard generation references must use Cloud Storage URIs.")
+        bucket_name, separator, object_name = uri.removeprefix("gs://").partition("/")
+        if not separator or not object_name.startswith(expected_prefix):
+            raise AccountAutopilotError("Dashboard reference is outside the selected account upload prefix.")
+        extension = {
+            "image/jpeg": ".jpg",
+            "image/png": ".png",
+            "image/webp": ".webp",
+        }.get(str(item.get("content_type") or "").lower())
+        if not extension:
+            raise AccountAutopilotError("Unsupported dashboard reference image type.")
+        output_path = output_dir / f"reference_{index:02d}{extension}"
+        client.bucket(bucket_name).blob(object_name).download_to_filename(output_path)
+        if not output_path.exists() or output_path.stat().st_size <= 0:
+            raise AccountAutopilotError(f"Dashboard reference download was empty: {item.get('id')}")
+        downloaded.append(output_path)
+    return downloaded
 
 
 def run_autopilot(
@@ -146,8 +251,14 @@ def run_autopilot(
     autopilot_path: Path,
     config: dict[str, Any],
     args: argparse.Namespace,
+    *,
+    generation_request: dict[str, Any] | None = None,
+    account_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    if not bool(config.get("enabled", True)):
+    generation_request = generation_request or load_generation_request(
+        str(args.request_file or ""), expected_account_id=account_id
+    )
+    if not bool(config.get("enabled", True)) and not generation_request:
         return {"status": "disabled", "account_id": account_id}
 
     tz_name = str(config.get("timezone") or "America/Mexico_City")
@@ -155,10 +266,16 @@ def run_autopilot(
     today = date.fromisoformat(args.today) if args.today else datetime.now(tz).date()
     start_date = date.fromisoformat(str(config.get("start_date") or today.isoformat()))
     interval_days = int(config.get("interval_days") or 1)
-    due = is_due(today, start_date=start_date, interval_days=interval_days)
+    due = bool(generation_request) or is_due(today, start_date=start_date, interval_days=interval_days)
     cycle_index = max(0, (today - start_date).days // max(1, interval_days))
-    generation_request = load_generation_request(str(args.request_file or ""), expected_account_id=account_id)
-    concept = select_concept(config, cycle_index=cycle_index, forced_id=str(args.concept_id or ""))
+    if generation_request and not list(config.get("concepts") or []):
+        concept = {
+            "concept_id": generation_request["concept_id"],
+            "caption": generation_request.get("caption") or "",
+            "v3_config": "",
+        }
+    else:
+        concept = select_concept(config, cycle_index=cycle_index, forced_id=str(args.concept_id or ""))
     if generation_request:
         concept = {
             **concept,
@@ -183,6 +300,7 @@ def run_autopilot(
         "publish_at": publish_at.isoformat(),
         "platforms": str(config.get("platforms") or "instagram,facebook"),
         "autopilot_config": str(autopilot_path),
+        "execution_mode": "manual_dashboard" if generation_request else "autopilot",
         "request_id": str(args.request_id or generation_request.get("request_id") or "") if generation_request else "",
     }
     if args.plan_only:
@@ -201,8 +319,16 @@ def run_autopilot(
     run_dir.mkdir(parents=True, exist_ok=True)
     write_json(run_dir / "autopilot_plan.json", plan)
 
-    wrapper_path = require_inside(account_dir, resolve_path(account_dir, str(concept["v3_config"])), "V3 wrapper")
-    wrapper_config = read_json(wrapper_path)
+    wrapper_value = str(concept.get("v3_config") or "").strip()
+    if wrapper_value:
+        wrapper_path = require_inside(account_dir, resolve_path(account_dir, wrapper_value), "V3 wrapper")
+        wrapper_config = read_json(wrapper_path)
+    elif generation_request:
+        wrapper_path = run_dir / "dashboard_manual_wrapper.json"
+        wrapper_config = build_manual_wrapper(account_id, account_config or {}, generation_request["source_config"])
+        write_json(wrapper_path, wrapper_config)
+    else:
+        raise AccountAutopilotError(f"Concept {concept['concept_id']} has no V3 wrapper.")
     if generation_request:
         source_config = dict(generation_request["source_config"])
         source_config_path = run_dir / "dashboard_source_config.json"
@@ -220,9 +346,20 @@ def run_autopilot(
         "prepare_v3_manifest",
         lambda: prepare_v3_manifest(account_id, wrapper_config, source_config, source_config_path, run_dir),
     )
+    request_references = run_checked(
+        "download_dashboard_references",
+        lambda: download_dashboard_references(account_id, generation_request, run_dir),
+    )
     first_frames = run_checked(
         "generate_first_frames",
-        lambda: generate_first_frames(account_dir, wrapper_config, v3_manifest, run_dir, config),
+        lambda: generate_first_frames(
+            account_dir,
+            wrapper_config,
+            v3_manifest,
+            run_dir,
+            config,
+            explicit_references=request_references,
+        ),
     )
     omni_config_path = run_checked(
         "build_omni_config",
@@ -242,6 +379,10 @@ def run_autopilot(
         "postprocess_publish_ready",
         lambda: postprocess_publish_ready(final_video, run_dir, config),
     )
+    if generation_request and not str(args.publish_at or "").strip():
+        publish_at = datetime.now(tz) + timedelta(minutes=10)
+        plan["publish_at"] = publish_at.isoformat()
+        write_json(run_dir / "autopilot_plan.json", plan)
     video_manifest = run_checked(
         "write_video_manifest",
         lambda: write_video_manifest(account_id, run_dir, publish_ready, concept, publish_at),
@@ -341,6 +482,8 @@ def generate_first_frames(
     records: list[dict[str, Any]],
     run_dir: Path,
     autopilot_config: dict[str, Any],
+    *,
+    explicit_references: list[Path] | None = None,
 ) -> list[Path]:
     if not bool((autopilot_config.get("first_frame") or {}).get("enabled", True)):
         raise AccountAutopilotError("V3 autopilot requires first_frame.enabled=true.")
@@ -357,9 +500,9 @@ def generate_first_frames(
         "timeout": int(first_frame_config.get("timeout_seconds") or 240),
         "ffmpeg_path": "ffmpeg",
     }
-    references: list[Path] = []
+    references: list[Path] = list(explicit_references or [])
     if bool(first_frame_config.get("with_cloudinary_refs", True)):
-        references = load_reference_images(account_dir, wrapper_config, run_dir)
+        references.extend(load_reference_images(account_dir, wrapper_config, run_dir))
     generated: list[Path] = []
     for record in records:
         index = int(record["index"])
@@ -596,7 +739,23 @@ def load_generation_request(path_value: str, *, expected_account_id: str) -> dic
     for key in ("hooks", "mains", "ctas"):
         if not isinstance(source.get(key), list) or not source[key]:
             raise AccountAutopilotError(f"Dashboard source_config requires non-empty {key}.")
-    return {**request, "account_id": account_id, "concept_id": concept_id, "source_config": source}
+    attachments = list(request.get("reference_attachments") or [])
+    if len(attachments) > 6:
+        raise AccountAutopilotError("Dashboard request supports at most 6 reference attachments.")
+    for item in attachments:
+        if not isinstance(item, dict):
+            raise AccountAutopilotError("Dashboard reference attachment must be an object.")
+        if normalize_account_id(str(item.get("account_id") or "")) != expected_account_id:
+            raise AccountAutopilotError("Dashboard reference attachment belongs to a different account.")
+        if not str(item.get("storage_uri") or "").startswith("gs://"):
+            raise AccountAutopilotError("Dashboard reference attachment must use a Cloud Storage URI.")
+    return {
+        **request,
+        "account_id": account_id,
+        "concept_id": concept_id,
+        "source_config": source,
+        "reference_attachments": attachments,
+    }
 
 
 def is_due(today: date, *, start_date: date, interval_days: int) -> bool:

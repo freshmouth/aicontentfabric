@@ -160,7 +160,7 @@ def chat(request: ChatRequest) -> dict[str, Any]:
         }
         for item in attachment_records
     ]
-    context = catalog.generation_template(request.account_id)
+    context = catalog.creative_template(request.account_id)
     response = creative.create_or_revise(
         account_context=context,
         message=request.message,
@@ -294,17 +294,40 @@ def scheduler_tick(x_factory_cron: str | None = Header(default=None)) -> dict[st
 
 def queue_draft(draft: dict[str, Any], request: GenerateRequest, *, job_id: str | None = None) -> dict[str, Any]:
     account_id = str(draft["account_id"])
-    catalog.get_account(account_id)
+    account = catalog.get_account(account_id)
+    if not account["creative_ready"]:
+        raise HTTPException(status_code=409, detail=f"Account {account_id} is not ready for manual generation.")
+    if not request.skip_publish and not account["publish_ready"]:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Account {account_id} has no account-scoped publish_config.json for Metricool.",
+        )
     job_id = job_id or new_id("job")
     now = utc_now()
     concept_id = str(draft["creative_spec"].get("concept_id") or job_id)
+    attachment_ids = [
+        str(item.get("id")) for item in list(draft.get("attachments") or []) if item.get("id")
+    ]
+    attachment_records = resolve_attachments(account_id, attachment_ids)
     payload = {
         "schema_version": 1,
+        "mode": "manual_dashboard",
         "request_id": job_id,
         "account_id": account_id,
         "concept_id": concept_id,
         "caption": draft.get("caption") or "",
         "source_config": draft["creative_spec"],
+        "reference_attachments": [
+            {
+                "id": item["id"],
+                "account_id": item["account_id"],
+                "filename": item["filename"],
+                "content_type": item["content_type"],
+                "storage_uri": item["storage_uri"],
+            }
+            for item in attachment_records
+            if str(item.get("storage_uri") or "").startswith("gs://")
+        ],
     }
     job = JobRecord(
         id=job_id,
