@@ -46,7 +46,9 @@ class AccountCatalog:
         timezone = str(override.get("timezone") or autopilot.get("timezone") or "America/Mexico_City")
         creative_ready = account_path.exists()
         autopilot_ready = bool(autopilot and concepts)
-        publish_ready = (account_dir / "publish_config.json").exists()
+        publish_ready = bool(registry_entry.get("manual_publish", False)) or (
+            account_dir / "publish_config.json"
+        ).exists()
         status = (
             "active"
             if effective_enabled and autopilot_ready
