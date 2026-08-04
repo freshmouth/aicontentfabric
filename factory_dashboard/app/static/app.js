@@ -9,6 +9,9 @@ const state = {
   pendingAttachments: [],
 };
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
+const CREATIVE_REQUEST_TIMEOUT_MS = 120000;
+
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
@@ -44,10 +47,23 @@ function bindEvents() {
 }
 
 async function api(path, options = {}) {
+  const { timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, ...fetchOptions } = options;
   const headers = { ...(options.headers || {}) };
   if (!(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
-  const response = await fetch(path, { ...options, headers });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await fetch(path, { ...fetchOptions, headers, signal: controller.signal });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)} seconds. Nothing was queued.`);
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
   if (response.status === 401) {
     $("#authScreen").classList.remove("hidden");
     throw new Error("Authentication required");
@@ -177,8 +193,13 @@ async function sendChat(event) {
   if (!message) return;
   const button = $("#sendChat");
   setBusy(button, true, "Thinking");
+  const startedAt = Date.now();
+  const elapsedTimer = window.setInterval(() => {
+    const seconds = Math.floor((Date.now() - startedAt) / 1000);
+    setBusy(button, true, `Thinking ${seconds}s`);
+  }, 1000);
   try {
-    const data = await api("/api/chat", { method: "POST", body: JSON.stringify({
+    const data = await api("/api/chat", { method: "POST", timeoutMs: CREATIVE_REQUEST_TIMEOUT_MS, body: JSON.stringify({
       account_id: state.selectedAccountId,
       message,
       draft_id: state.selectedDraftId,
@@ -192,7 +213,10 @@ async function sendChat(event) {
     render();
     toast("Creative draft saved to the cloud.");
   } catch (error) { toast(error.message, true); }
-  finally { setBusy(button, false, "Send"); }
+  finally {
+    window.clearInterval(elapsedTimer);
+    setBusy(button, false, "Send");
+  }
 }
 
 async function updateDraftStatus(status) {

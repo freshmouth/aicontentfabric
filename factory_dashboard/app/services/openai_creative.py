@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import socket
 import ssl
 import urllib.error
 import urllib.request
@@ -40,7 +41,7 @@ class OpenAICreativeService:
         payload = {
             "model": self.model,
             "input": [{"role": "user", "content": content}],
-            "max_output_tokens": 7000,
+            "max_output_tokens": 4500,
             "text": {"format": {"type": "json_object"}},
         }
         request = urllib.request.Request(
@@ -56,7 +57,7 @@ class OpenAICreativeService:
         try:
             with urllib.request.urlopen(
                 request,
-                timeout=240,
+                timeout=100,
                 context=truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT),
             ) as response:
                 raw = json.loads(response.read().decode("utf-8"))
@@ -65,6 +66,10 @@ class OpenAICreativeService:
             raise CreativeServiceError(f"OpenAI creative request failed: HTTP {exc.code}: {detail}") from exc
         except urllib.error.URLError as exc:
             raise CreativeServiceError(f"OpenAI creative request failed: {exc.reason}") from exc
+        except (TimeoutError, socket.timeout) as exc:
+            raise CreativeServiceError(
+                "OpenAI creative request timed out after 100 seconds. Nothing was queued; please retry."
+            ) from exc
         parsed = parse_json_response(extract_response_text(raw))
         spec = parsed.get("source_config")
         if not isinstance(spec, dict):
