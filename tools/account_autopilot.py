@@ -4,6 +4,7 @@ import argparse
 import copy
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -32,10 +33,17 @@ class AccountAutopilotError(RuntimeError):
     pass
 
 
+class CommandExecutionError(AccountAutopilotError):
+    def __init__(self, returncode: int, diagnostic_code: str) -> None:
+        self.returncode = returncode
+        self.diagnostic_code = diagnostic_code
+        super().__init__(f"command_exit={returncode}; diagnostic={diagnostic_code}")
+
+
 class StageExecutionError(AccountAutopilotError):
     def __init__(self, stage: str, cause: Exception) -> None:
         self.stage = stage
-        self.cause_type = type(cause).__name__
+        self.cause_type = str(getattr(cause, "diagnostic_code", type(cause).__name__))
         super().__init__(f"stage={self.stage}; cause={self.cause_type}")
 
 
@@ -638,10 +646,31 @@ def run_logged(
     stdout_path.write_text(result.stdout, encoding="utf-8")
     stderr_path.write_text(result.stderr, encoding="utf-8")
     if result.returncode != 0:
-        raise AccountAutopilotError(f"Command failed with exit code {result.returncode}. See {stderr_path}")
+        raise CommandExecutionError(result.returncode, classify_command_failure(result.stderr))
     elapsed = round(time.monotonic() - started, 3)
     print(f"Finished in {elapsed}s")
     return result
+
+
+def classify_command_failure(stderr: str) -> str:
+    value = str(stderr or "")
+    lowered = value.lower()
+    patterns = (
+        ("authentication_failed", ("unauthenticated", "invalid authentication credentials", "missing google auth token")),
+        ("permission_denied", ("permission denied", "permissiondenied", "status 403", "http 403")),
+        ("resource_not_found", ("notfound", "status 404", "http 404", "was not found")),
+        ("rate_limited", ("resourceexhausted", "rate limit", "status 429", "http 429")),
+        ("provider_timeout", ("deadlineexceeded", "timed out", "timeout")),
+        ("invalid_request", ("invalidargument", "status 400", "http 400")),
+        ("ssl_error", ("sslerror", "certificate verify failed")),
+    )
+    for code, needles in patterns:
+        if any(needle in lowered for needle in needles):
+            return code
+    exception_names = re.findall(r"\b([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception))\s*:", value)
+    if exception_names:
+        return exception_names[-1]
+    return "subprocess_failed"
 
 
 def read_json(path: Path) -> dict[str, Any]:
