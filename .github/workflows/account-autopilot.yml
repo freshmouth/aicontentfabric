@@ -39,6 +39,7 @@ jobs:
       contents: read
       id-token: write
     env:
+      PYTHONPATH: ${{ github.workspace }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       GOOGLE_CLOUD_PROJECT: ai-content-factory-501821
       CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
