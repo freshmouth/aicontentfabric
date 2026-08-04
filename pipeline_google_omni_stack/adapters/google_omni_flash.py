@@ -378,6 +378,7 @@ def get_service_account_access_token() -> str:
     if not raw_json and not credentials_path:
         return ""
     try:
+        import google.auth
         from google.auth.transport.requests import Request
         from google.oauth2 import service_account
     except ImportError as exc:
@@ -395,10 +396,10 @@ def get_service_account_access_token() -> str:
                 info = json.loads(base64.b64decode(raw_json).decode("utf-8"))
             credentials = service_account.Credentials.from_service_account_info(info, scopes=scopes)
         else:
-            credentials = service_account.Credentials.from_service_account_file(credentials_path, scopes=scopes)
+            credentials, _ = google.auth.default(scopes=scopes)
         credentials.refresh(Request())
     except Exception as exc:
-        raise GoogleOmniError(f"Failed to mint Google service account access token: {exc}") from exc
+        raise GoogleOmniError(f"Failed to mint Google Application Default Credentials access token: {exc}") from exc
     return str(credentials.token or "").strip()
 
 

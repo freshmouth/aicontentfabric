@@ -658,7 +658,15 @@ def classify_command_failure(stderr: str) -> str:
     patterns = (
         ("responsible_ai_filtered", ("responsible_ai_filtered", "responsible ai", "filtered out")),
         ("provider_generation_failed", ("provider_generation_failed", "provider generation failed")),
-        ("authentication_failed", ("unauthenticated", "invalid authentication credentials", "missing google auth token")),
+        (
+            "authentication_failed",
+            (
+                "unauthenticated",
+                "invalid authentication credentials",
+                "missing google auth token",
+                "application default credentials access token",
+            ),
+        ),
         ("permission_denied", ("permission denied", "permissiondenied", "status 403", "http 403")),
         ("resource_not_found", ("notfound", "status 404", "http 404", "was not found")),
         ("rate_limited", ("resourceexhausted", "rate limit", "status 429", "http 429")),
