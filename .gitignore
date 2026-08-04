@@ -24,4 +24,7 @@ voiceover.txt
 pipeline_google_omni_stack/runs/
 social_scheduler/queue.json
 social_scheduler/config.meta.local.json
+accounts/*/queue.json
+accounts/*/secrets.env
+gha-creds-*.json
 daily_factory/v11_*/
