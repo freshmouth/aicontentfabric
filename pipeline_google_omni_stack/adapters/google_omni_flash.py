@@ -72,47 +72,49 @@ def generate_clip(
         output_path=output_path,
         token=token,
     )
-    request_body = build_interaction_request(
-        prompt=prompt,
-        settings=settings,
-        duration_seconds=int(duration_seconds),
-        aspect_ratio=aspect_ratio,
-        reference_images=prepared_reference_images,
-        reference_videos=reference_videos or [],
-        background=background,
-        extra_input=extra_input or [],
-    )
-    write_json(output_path.with_suffix(".request.json"), redacted_request(request_body))
-
     started = time.monotonic()
     last_error: str | None = None
-    response: dict[str, Any] | None = None
-    for attempt in range(1, settings.retries + 2):
-        try:
-            response = post_json(settings.interactions_url, request_body, token=token)
+    interaction_id = ""
+    response: dict[str, Any] = {}
+    generation_prompt = prompt
+    for generation_attempt in range(2):
+        request_body = build_interaction_request(
+            prompt=generation_prompt,
+            settings=settings,
+            duration_seconds=int(duration_seconds),
+            aspect_ratio=aspect_ratio,
+            reference_images=prepared_reference_images,
+            reference_videos=reference_videos or [],
+            background=background,
+            extra_input=extra_input or [],
+        )
+        suffix = "" if generation_attempt == 0 else ".safety_retry"
+        write_json(output_path.with_suffix(f"{suffix}.request.json"), redacted_request(request_body))
+        response, submit_error = submit_interaction(settings, request_body, token=token)
+        last_error = submit_error or last_error
+        write_json(output_path.with_suffix(f"{suffix}.submit.json"), response)
+
+        interaction_id = str(response.get("id") or "").strip()
+        if not interaction_id:
+            raise GoogleOmniError("Google Omni response did not include an interaction id.")
+        response = poll_interaction(
+            settings=settings,
+            interaction_id=interaction_id,
+            token=token,
+            initial_response=response,
+        )
+        write_json(output_path.with_suffix(f"{suffix}.response.json"), response)
+        failure_code = interaction_failure_code(response)
+        if str(response.get("status") or "").lower() == "completed":
             break
-        except Exception as exc:
-            last_error = str(exc)
-            if attempt > settings.retries:
-                raise GoogleOmniError(f"Google Omni submit failed after {attempt} attempts: {exc}") from exc
-            time.sleep(min(30, 2**attempt))
-    assert response is not None
-    write_json(output_path.with_suffix(".submit.json"), response)
+        if failure_code != "responsible_ai_filtered" or generation_attempt > 0:
+            raise GoogleOmniError(f"Google Omni interaction failed: {failure_code}.")
+        generation_prompt = safety_retry_prompt(prompt)
 
-    interaction_id = str(response.get("id") or "").strip()
-    if not interaction_id:
-        raise GoogleOmniError(f"Google Omni response did not include an interaction id: {response}")
-
-    response = poll_interaction(
-        settings=settings,
-        interaction_id=interaction_id,
-        token=token,
-        initial_response=response,
-    )
     write_json(output_path.with_suffix(".response.json"), response)
     status = str(response.get("status") or "").lower()
     if status != "completed":
-        raise GoogleOmniError(f"Google Omni interaction {interaction_id} ended with status {status}.")
+        raise GoogleOmniError(f"Google Omni interaction failed: {interaction_failure_code(response)}.")
 
     extracted = extract_video_output(response)
     if extracted.get("data"):
@@ -143,6 +145,51 @@ def generate_clip(
         append_jsonl(log_path, metadata)
     write_json(output_path.with_suffix(".metadata.json"), metadata)
     return metadata
+
+
+def submit_interaction(
+    settings: GoogleOmniSettings,
+    request_body: dict[str, Any],
+    *,
+    token: str,
+) -> tuple[dict[str, Any], str | None]:
+    last_error: str | None = None
+    for attempt in range(1, settings.retries + 2):
+        try:
+            return post_json(settings.interactions_url, request_body, token=token), last_error
+        except Exception as exc:
+            last_error = str(exc)
+            if attempt > settings.retries:
+                raise GoogleOmniError(f"Google Omni submit failed after {attempt} attempts: {exc}") from exc
+            time.sleep(min(30, 2**attempt))
+    raise GoogleOmniError("Google Omni submit failed without a response.")
+
+
+def interaction_failure_code(response: dict[str, Any]) -> str:
+    for step in response.get("steps", []) or []:
+        if not isinstance(step, dict) or not isinstance(step.get("error"), dict):
+            continue
+        message = str(step["error"].get("message") or "").lower()
+        if "responsible ai" in message or "filtered out" in message:
+            return "responsible_ai_filtered"
+        if "invalid argument" in message:
+            return "invalid_argument"
+        if "permission" in message or "denied" in message:
+            return "permission_denied"
+        if "quota" in message or "rate limit" in message:
+            return "rate_limited"
+        return "provider_generation_failed"
+    status = str(response.get("status") or "").lower()
+    return status if status in {"cancelled", "canceled", "expired"} else "provider_generation_failed"
+
+
+def safety_retry_prompt(prompt: str) -> str:
+    return (
+        f"{prompt}\n\n"
+        "SAFETY RETRY: Treat this as a neutral culinary and consumer-education scene, not medical advice. "
+        "Do not depict illness, bodily harm, treatment, diagnosis, or an extreme physical reaction. "
+        "Keep the exact source frame, ordinary food handling, subtle natural motion, and calm conversational delivery."
+    )
 
 
 def build_interaction_request(

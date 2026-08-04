@@ -16,8 +16,8 @@
       "duration_seconds": 4,
       "subject_label": "midnight kitchen snack craving and off-white flaky sea salt ritual, no product packaging",
       "subject_placement_hint": "person opening the fridge or pantry at night with a tiny dish of off-white translucent flaky sea salt crystals visible nearby as the relevant mineral alternative; no product packaging or readable brands",
-      "script": "Tu cuerpo no tiene hambre, tiene sed de minerales.",
-      "prompt": "First-frame thumbnail for a Spanish UGC reel: a tired person in a lived-in kitchen at midnight opens the fridge and reaches for random snacks, while a tiny ceramic dish of off-white translucent flaky sea salt crystals sits on the counter as the contrast object. The salt must match the attached grain reference: irregular fractured flakes, semi-translucent off-white crystals, dry coarse flakes, not gray gravel, not round pebbles. Phone-camera realism, slightly messy kitchen, fridge light spilling into the dark room, sleepy expression, snack wrappers or leftovers in the background but no readable brands. The frame should instantly communicate late-night cravings and mineral thirst. Do not show any product packaging, logos, labels, or fake branded containers. Native dialogue: Tu cuerpo no tiene hambre, tiene sed de minerales."
+      "script": "Tu antojo de medianoche no siempre empieza con hambre.",
+      "prompt": "First-frame thumbnail for a Spanish UGC reel: a tired person in a lived-in kitchen at midnight opens the fridge and reaches for random snacks, while a tiny ceramic dish of off-white translucent flaky sea salt crystals sits on the counter as a later culinary comparison. The salt must match the attached grain reference: irregular fractured flakes, semi-translucent off-white crystals, dry coarse flakes, not gray gravel, not round pebbles. Phone-camera realism, slightly messy kitchen, fridge light spilling into the dark room, sleepy expression, snack wrappers or leftovers in the background but no readable brands. The frame should instantly communicate a familiar late-night snack loop, without making a medical claim. Do not show any product packaging, logos, labels, or fake branded containers. Native dialogue: Tu antojo de medianoche no siempre empieza con hambre."
     }
   ],
   "mains": [
@@ -31,8 +31,8 @@
           "duration_seconds": 5,
           "subject_label": "person snacking in kitchen at night",
           "subject_placement_hint": "person standing by the counter with several small snack bites, tired and unsatisfied",
-          "script": "Pasas todo el día picando comida porque tu cuerpo sigue buscando algo.",
-          "prompt": "Night kitchen UGC shot: person standing at counter eating tiny snack bites from different containers, tired and unsatisfied, fridge light and warm counter lamp, real messy home. No readable brands. Native dialogue: Pasas todo el día picando comida porque tu cuerpo sigue buscando algo."
+          "script": "A veces sigues picando porque lo que comiste no se sintió completo ni satisfactorio.",
+          "prompt": "Night kitchen UGC shot: person standing at counter eating tiny snack bites from different containers, tired and unsatisfied, fridge light and warm counter lamp, real messy home. Everyday food behavior only, no medical or body-effect claim. No readable brands. Native dialogue: A veces sigues picando porque lo que comiste no se sintió completo ni satisfactorio."
         },
         {
           "id": "common_salt_contrast",
@@ -47,16 +47,16 @@
           "duration_seconds": 5,
           "subject_label": "single flaky sea salt crystal on fingertip beside water",
           "subject_placement_hint": "close-up of clean fingers holding one off-white translucent flaky sea salt crystal beside a small glass of water, realistic and tasteful",
-          "script": "Por eso algunas personas empiezan con un cristal pequeño y agua.",
-          "prompt": "Tasteful close-up UGC shot: clean fingers hold one off-white translucent flaky sea salt crystal on a fingertip beside a small glass of water on the kitchen counter, face not visible, natural skin texture, realistic hand, not medical, not grotesque. The salt crystal must match the attached grain reference: irregular fractured flake, semi-translucent off-white, not gray, not a round pebble. Native dialogue: Por eso algunas personas empiezan con un cristal pequeño y agua."
+          "script": "Antes de abrir otra bolsa, yo preparo agua y termino una comida real con estos cristales.",
+          "prompt": "Tasteful close-up UGC shot: clean fingers hold one off-white translucent flaky sea salt crystal on a fingertip beside a small glass of water and a finished plate on the kitchen counter, face not visible, natural skin texture, realistic hand. This is a neutral culinary routine, not treatment or medical advice. The salt crystal must match the attached grain reference: irregular fractured flake, semi-translucent off-white, not gray, not a round pebble. Native dialogue: Antes de abrir otra bolsa, yo preparo agua y termino una comida real con estos cristales."
         },
         {
           "id": "eighty_two_minerals",
           "duration_seconds": 6,
           "subject_label": "off-white flaky sea salt crystals and pantry-snack contrast, no product packaging",
           "subject_placement_hint": "off-white translucent flaky sea salt crystals on an oak counter beside ordinary pantry snacks; no product packaging, no logos, no readable brands",
-          "script": "La idea es simple: minerales antes de seguir abriendo la alacena.",
-          "prompt": "Off-white translucent flaky sea salt crystals on an oak kitchen counter beside ordinary pantry snacks, warm realistic UGC lighting, hand reaching past snack containers toward the salt. The salt must match the attached grain reference: irregular fractured flakes, semi-translucent off-white pieces, dry coarse crystals, not gray gravel, not round pebbles. Do not show product packaging, logos, labels, or fake branded containers. Native dialogue: La idea es simple: minerales antes de seguir abriendo la alacena."
+          "script": "La idea es simple: pausa, revisa tu comida y no sigas abriendo la alacena en automático.",
+          "prompt": "Off-white translucent flaky sea salt crystals on an oak kitchen counter beside a complete simple meal and ordinary pantry snacks, warm realistic UGC lighting, hand closing the pantry before returning to the meal. Neutral food routine only. The salt must match the attached grain reference: irregular fractured flakes, semi-translucent off-white pieces, dry coarse crystals, not gray gravel, not round pebbles. Do not show product packaging, logos, labels, or fake branded containers. Native dialogue: La idea es simple: pausa, revisa tu comida y no sigas abriendo la alacena en automático."
         }
       ]
     }
