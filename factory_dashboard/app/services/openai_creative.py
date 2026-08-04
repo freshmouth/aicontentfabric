@@ -76,6 +76,7 @@ class OpenAICreativeService:
             raise CreativeServiceError("Creative response did not contain source_config.")
         spec["account_id"] = account_context["account"]["account_id"]
         spec.setdefault("language", template.get("language") or "en")
+        normalize_scene_count(spec)
         validate_source_config(spec)
         return parsed
 
@@ -102,7 +103,9 @@ Language: {template.get('language', 'en')}
 Use the supplied V3 template as structural and identity guidance. Never borrow a person, product, CTA, room,
 brand voice, or asset from another account. Create one coherent vertical UGC video with independent leaf scenes,
 one exact spoken line per scene, no repeated line fragments, no montage inside a scene, no baked captions, and a
-clear ending. Keep health claims educational and non-medical. Preserve the template's character and visual rules.
+clear ending. Return exactly one hook, one CTA, and 4-8 chronological main leaf scenes (6-10 leaf scenes total).
+Never exceed 12 leaf scenes. Keep health claims educational and non-medical. Preserve the template's character and
+visual rules.
 
 USER REQUEST:
 {message}
@@ -177,3 +180,34 @@ def validate_source_config(spec: dict[str, Any]) -> None:
     scene_count += sum(len(item.get("segments") or [item]) for item in spec["mains"])
     if not 3 <= scene_count <= 12:
         raise CreativeServiceError("Creative source_config must contain 3-12 leaf scenes.")
+
+
+def normalize_scene_count(spec: dict[str, Any], max_scenes: int = 12) -> None:
+    """Keep a single-video draft within the renderer's leaf-scene limit."""
+    hooks = spec.get("hooks")
+    mains = spec.get("mains")
+    ctas = spec.get("ctas")
+    if not all(isinstance(group, list) for group in (hooks, mains, ctas)):
+        return
+
+    spec["hooks"] = hooks[:1]
+    spec["ctas"] = ctas[-1:]
+    remaining = max_scenes - len(spec["hooks"]) - len(spec["ctas"])
+    normalized_mains: list[dict[str, Any]] = []
+
+    for main in mains:
+        if remaining <= 0 or not isinstance(main, dict):
+            break
+        segments = main.get("segments")
+        if isinstance(segments, list) and segments:
+            kept_segments = segments[:remaining]
+            if kept_segments:
+                normalized_main = dict(main)
+                normalized_main["segments"] = kept_segments
+                normalized_mains.append(normalized_main)
+                remaining -= len(kept_segments)
+        else:
+            normalized_mains.append(main)
+            remaining -= 1
+
+    spec["mains"] = normalized_mains
