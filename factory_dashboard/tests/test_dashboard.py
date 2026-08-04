@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from factory_dashboard.app import main
 from factory_dashboard.app.services.accounts import AccountCatalog
 from factory_dashboard.app.services.attachments import AttachmentStorage
-from factory_dashboard.app.services.openai_creative import normalize_scene_count, validate_source_config
+from factory_dashboard.app.services.openai_creative import validate_source_config
 from factory_dashboard.app.store import LocalJsonStore
 from tools.account_autopilot import (
     AccountAutopilotError,
@@ -217,7 +217,7 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(result["concept_id"], "manual_test")
         self.assertTrue(result["plan_only"])
 
-    def test_creative_scene_overflow_is_condensed_before_validation(self):
+    def test_creative_scene_count_has_no_upper_limit(self):
         spec = {
             "concept_id": "scene_overflow",
             "account_id": "sal_celtica",
@@ -232,12 +232,11 @@ class DashboardTests(unittest.TestCase):
             "ctas": [{"id": "c1"}, {"id": "c2"}],
         }
 
-        normalize_scene_count(spec)
         validate_source_config(spec)
 
-        self.assertEqual([item["id"] for item in spec["hooks"]], ["h1"])
-        self.assertEqual([item["id"] for item in spec["ctas"]], ["c2"])
-        self.assertEqual(len(spec["mains"][0]["segments"]), 10)
+        self.assertEqual(len(spec["hooks"]), 2)
+        self.assertEqual(len(spec["ctas"]), 2)
+        self.assertEqual(len(spec["mains"][0]["segments"]), 15)
 
 
 if __name__ == "__main__":
