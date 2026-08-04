@@ -83,6 +83,30 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install google-auth requests tzdata
 
+      - name: Validate cloud credentials
+        shell: bash
+        run: |
+          MISSING=()
+          for KEY in OPENAI_API_KEY GOOGLE_CLOUD_PROJECT GOOGLE_SERVICE_ACCOUNT_JSON; do
+            if [[ -z "${!KEY:-}" ]]; then
+              MISSING+=("$KEY")
+            fi
+          done
+          ACCOUNT="${{ inputs.account }}"
+          if [[ -z "$ACCOUNT" || "$ACCOUNT" == "sal_celtica" ]]; then
+            if [[ -z "${ACCOUNT_PUBLISH_SECRETS_JSON:-}" ]]; then
+              for KEY in SAL_CELTICA_METRICOOL_API_TOKEN SAL_CELTICA_METRICOOL_USER_ID SAL_CELTICA_METRICOOL_BLOG_ID; do
+                if [[ -z "${!KEY:-}" ]]; then
+                  MISSING+=("$KEY")
+                fi
+              done
+            fi
+          fi
+          if (( ${#MISSING[@]} > 0 )); then
+            echo "::error title=Missing GitHub Actions secrets::${MISSING[*]}"
+            exit 1
+          fi
+
       - name: Run account autopilot
         shell: bash
         run: |
