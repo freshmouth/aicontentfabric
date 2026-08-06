@@ -1,0 +1,9 @@
+{
+  "schema_version": 3,
+  "name": "Claire V3 - Protein Granola Cookie",
+  "account_id": "claire",
+  "source_config": "config.protein_granola_cookie_v3.json",
+  "subject_label": "Claire exposing misleading protein-granola positioning in a supermarket cereal aisle and lived-in kitchen",
+  "subject_placement_hint": "Preserve Claire's canonical identity and one consistent casual outfit. Use account concept frames for dramatic native-TikTok composition only. Show ordinary generic supermarket granola packaging with no readable brands, invented labels, or Claire branding.",
+  "cloudinary_max_reference_images": 0
+}

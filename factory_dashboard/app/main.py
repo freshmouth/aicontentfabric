@@ -420,7 +420,17 @@ def scheduler_tick(x_factory_cron: str | None = Header(default=None)) -> dict[st
         publish_at = datetime.fromisoformat(
             f"{account['local_date']}T{account['publish_time']}:00"
         ).replace(tzinfo=ZoneInfo(account["timezone"])).isoformat()
-        queued.append(queue_draft(draft, GenerateRequest(publish_at=publish_at, dry_run=False), job_id=deterministic_id))
+        queued.append(
+            queue_draft(
+                draft,
+                GenerateRequest(
+                    publish_at=publish_at,
+                    dry_run=False,
+                    skip_publish=not bool(account.get("publish_enabled", True)),
+                ),
+                job_id=deterministic_id,
+            )
+        )
     return {"status": "ok", "queued": queued, "skipped": skipped, "checked_at": utc_now()}
 
 

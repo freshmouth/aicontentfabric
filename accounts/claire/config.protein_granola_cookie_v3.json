@@ -1,0 +1,59 @@
+{
+  "name": "Claire - Protein Granola Cookie V3",
+  "concept_id": "protein_granola_cookie",
+  "account_id": "claire",
+  "language": "en-US",
+  "defaults": {"aspect_ratio": "9:16", "duration_seconds": 5, "resolution": "720p"},
+  "master_prompt": "Fast native American TikTok UGC with one coherent Claire identity and female voice. Use a provocative grocery-label comparison, not fearmongering. No fake brands, baked captions, or medical claims.",
+  "hooks": [
+    {
+      "id": "granola_cookie_hook",
+      "title": "Protein granola is a cookie",
+      "duration_seconds": 5,
+      "script": "That protein granola can be a cookie with better marketing.",
+      "prompt": "Scroll-stopping supermarket cereal-aisle selfie. Claire holds a generic granola bag beside a large cookie, both too close to the lens, intense disbelieving expression, imperfect fluorescent lighting, no readable brand. Native dialogue exactly once: That protein granola can be a cookie with better marketing."
+    }
+  ],
+  "mains": [
+    {
+      "id": "granola_label_test",
+      "title": "Three-number test",
+      "segments": [
+        {
+          "id": "protein_front_claim",
+          "duration_seconds": 5,
+          "script": "A protein claim on the front does not tell you how much is in a serving.",
+          "prompt": "Claire points at a generic, non-legible front-of-bag protein callout and immediately flips the granola bag around. Real grocery UGC, no fake readable label. Native dialogue exactly once: A protein claim on the front does not tell you how much is in a serving."
+        },
+        {
+          "id": "serving_size_check",
+          "duration_seconds": 5,
+          "script": "First check serving size, because the bowl is usually much bigger.",
+          "prompt": "Top-down kitchen counter shot: Claire pours one measured generic granola serving into a tiny bowl beside a realistically larger breakfast bowl. Natural hands and gravity. Native dialogue exactly once: First check serving size, because the bowl is usually much bigger."
+        },
+        {
+          "id": "sugar_protein_compare",
+          "duration_seconds": 5,
+          "script": "Then compare added sugar to protein. That ratio tells the real story.",
+          "prompt": "Close phone shot of two generic nutrition panels intentionally too soft to read while Claire's fingers point between sugar and protein areas. No fabricated numbers. Native dialogue exactly once: Then compare added sugar to protein. That ratio tells the real story."
+        },
+        {
+          "id": "better_bowl",
+          "duration_seconds": 5,
+          "script": "I use plain yogurt, berries, seeds, and granola as the topping, not the meal.",
+          "prompt": "Medium lived-in kitchen shot. Claire makes a realistic bowl with plain yogurt, berries and seeds, finishing with a small granola sprinkle. Same identity, quick purposeful motion. Native dialogue exactly once: I use plain yogurt, berries, seeds, and granola as the topping, not the meal."
+        }
+      ]
+    }
+  ],
+  "ctas": [
+    {
+      "id": "comment_label",
+      "title": "Comment LABEL",
+      "duration_seconds": 5,
+      "script": "Comment LABEL and I will send the three numbers I compare.",
+      "prompt": "Claire holds up three fingers beside the finished bowl and looks directly into the phone lens. Same kitchen and outfit. Native dialogue exactly once: Comment LABEL and I will send the three numbers I compare."
+    }
+  ],
+  "variants": {"count": 1, "min_total_seconds": 29, "max_total_seconds": 31, "seed": 20260807, "stitch_leaf_segments": true}
+}

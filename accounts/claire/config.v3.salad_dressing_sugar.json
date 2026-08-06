@@ -1,0 +1,9 @@
+{
+  "schema_version": 3,
+  "name": "Claire V3 - Salad Dressing Sugar",
+  "account_id": "claire",
+  "source_config": "config.salad_dressing_sugar_v3.json",
+  "subject_label": "Claire revealing a supermarket salad-dressing label and making a quick kitchen alternative",
+  "subject_placement_hint": "Preserve Claire's canonical identity and one consistent casual outfit. Use account concept frames for dramatic UGC framing. Bottles must be generic and unbranded with no readable fabricated labels. Keep food and hand physics realistic.",
+  "cloudinary_max_reference_images": 0
+}

@@ -34,17 +34,25 @@ class AccountAutopilotError(RuntimeError):
 
 
 class CommandExecutionError(AccountAutopilotError):
-    def __init__(self, returncode: int, diagnostic_code: str) -> None:
+    def __init__(self, returncode: int, diagnostic_code: str, detail: str = "") -> None:
         self.returncode = returncode
         self.diagnostic_code = diagnostic_code
-        super().__init__(f"command_exit={returncode}; diagnostic={diagnostic_code}")
+        self.detail = detail
+        message = f"command_exit={returncode}; diagnostic={diagnostic_code}"
+        if detail:
+            message += f"; detail={detail}"
+        super().__init__(message)
 
 
 class StageExecutionError(AccountAutopilotError):
     def __init__(self, stage: str, cause: Exception) -> None:
         self.stage = stage
         self.cause_type = str(getattr(cause, "diagnostic_code", type(cause).__name__))
-        super().__init__(f"stage={self.stage}; cause={self.cause_type}")
+        detail = str(getattr(cause, "detail", "")).strip()
+        message = f"stage={self.stage}; cause={self.cause_type}"
+        if detail:
+            message += f"; detail={detail}"
+        super().__init__(message)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -379,6 +387,16 @@ def run_autopilot(
         "postprocess_publish_ready",
         lambda: postprocess_publish_ready(final_video, run_dir, config),
     )
+    hosted_video = run_checked(
+        "persist_final_video",
+        lambda: persist_final_video(
+            account_id=account_id,
+            video_path=publish_ready,
+            config=config,
+            today=today,
+            concept_id=str(concept["concept_id"]),
+        ),
+    )
     if generation_request and not str(args.publish_at or "").strip():
         publish_at = datetime.now(tz) + timedelta(minutes=10)
         plan["publish_at"] = publish_at.isoformat()
@@ -412,11 +430,48 @@ def run_autopilot(
         "omni_config": str(omni_config_path),
         "final_video": str(final_video),
         "publish_ready": str(publish_ready),
+        "hosted_video": hosted_video,
         "video_manifest": str(video_manifest),
         "metricool": publish_result,
     }
     write_json(run_dir / "autopilot_result.json", result)
     return result
+
+
+def persist_final_video(
+    *,
+    account_id: str,
+    video_path: Path,
+    config: dict[str, Any],
+    today: date,
+    concept_id: str,
+) -> dict[str, Any]:
+    prefix_uri = str(config.get("output_gcs_uri_prefix") or "").strip().rstrip("/")
+    if not prefix_uri.startswith("gs://"):
+        raise AccountAutopilotError("output_gcs_uri_prefix must be a gs:// URI for durable cloud runs.")
+    bucket_name, separator, prefix = prefix_uri.removeprefix("gs://").partition("/")
+    if not separator or not bucket_name or not prefix:
+        raise AccountAutopilotError(f"Invalid output_gcs_uri_prefix: {prefix_uri}")
+    if not video_path.exists() or video_path.stat().st_size <= 0:
+        raise AccountAutopilotError(f"Cannot persist missing final video: {video_path}")
+    try:
+        from google.cloud import storage
+    except ImportError as exc:
+        raise AccountAutopilotError("Durable cloud output requires google-cloud-storage.") from exc
+    object_name = (
+        f"{prefix}/{today.strftime('%Y%m%d')}/{slug(concept_id)}/final/"
+        f"final_video_{slug(account_id)}_{today.strftime('%Y%m%d')}.mp4"
+    )
+    client = storage.Client(project=os.environ.get("GOOGLE_CLOUD_PROJECT") or None)
+    blob = client.bucket(bucket_name).blob(object_name)
+    blob.upload_from_filename(str(video_path), content_type="video/mp4")
+    return {
+        "provider": "google_cloud_storage",
+        "bucket": bucket_name,
+        "object_name": object_name,
+        "gcs_uri": f"gs://{bucket_name}/{object_name}",
+        "size_bytes": int(video_path.stat().st_size),
+    }
 
 
 def run_checked(stage: str, operation: Any) -> Any:
@@ -500,18 +555,33 @@ def generate_first_frames(
         "timeout": int(first_frame_config.get("timeout_seconds") or 240),
         "ffmpeg_path": "ffmpeg",
     }
-    references: list[Path] = list(explicit_references or [])
+    character_references = load_configured_reference_files(
+        account_dir,
+        list(first_frame_config.get("character_reference_images") or []),
+        label="character reference",
+    )
+    explicit = list(explicit_references or [])
+    local_references = load_local_reference_images(account_dir, first_frame_config)
+    aesthetic_references: list[Path] = [*explicit, *local_references]
     if bool(first_frame_config.get("with_cloudinary_refs", True)):
-        references.extend(load_reference_images(account_dir, wrapper_config, run_dir))
+        aesthetic_references.extend(load_reference_images(account_dir, wrapper_config, run_dir))
+    references = deduplicate_paths([*character_references, *aesthetic_references])
     generated: list[Path] = []
     for record in records:
         index = int(record["index"])
         scene_id = slug(str(record["scene_id"]))
         output_path = run_dir / "first_images" / f"{index:02d}_{scene_id}.png"
         prompt = str(record["image_prompt"])
-        if references:
+        if character_references:
             prompt += (
-                "\n\nVisual quality references are attached. Use them only for aesthetic quality, UGC realism, "
+                "\n\nCHARACTER LOCK: The first attached reference image is the canonical identity for this account. "
+                "Preserve the same underlying person, face shape, eyes, nose, age, skin tone, hairline, and overall "
+                "identity. Change only the scene-specific action, object, framing, and clothing requested by the scene."
+            )
+        if aesthetic_references:
+            prompt += (
+                "\n\nThe remaining attached images are concept-frame and visual-quality references. Use them only "
+                "for composition ideas, aesthetic quality, UGC realism, "
                 "lighting, framing, hand/object naturalness, and product/object texture. Do not copy identities, "
                 "logos, captions, or unrelated objects from the references."
             )
@@ -527,6 +597,52 @@ def generate_first_frames(
         generated.append(output_path)
     update_v3_manifest_first_images(run_dir, generated)
     return generated
+
+
+def load_configured_reference_files(account_dir: Path, values: list[Any], *, label: str) -> list[Path]:
+    references: list[Path] = []
+    for raw_value in values:
+        value = str(raw_value or "").strip()
+        if not value:
+            continue
+        path = require_inside(account_dir, resolve_path(account_dir, value), label)
+        if not path.exists() or not path.is_file() or path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
+            raise AccountAutopilotError(f"Invalid {label}: {path}")
+        references.append(path)
+    return references
+
+
+def load_local_reference_images(account_dir: Path, first_frame_config: dict[str, Any]) -> list[Path]:
+    raw_dir = str(first_frame_config.get("local_reference_dir") or "").strip()
+    if not raw_dir:
+        return []
+    reference_dir = require_inside(
+        account_dir,
+        resolve_path(account_dir, raw_dir),
+        "local reference directory",
+    )
+    if not reference_dir.exists() or not reference_dir.is_dir():
+        raise AccountAutopilotError(f"Missing local reference directory: {reference_dir}")
+    limit = max(0, int(first_frame_config.get("local_reference_max_images") or 4))
+    images = sorted(
+        path
+        for path in reference_dir.iterdir()
+        if path.is_file() and path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
+    )
+    if not images:
+        raise AccountAutopilotError(f"No local reference images found in: {reference_dir}")
+    return images[:limit] if limit else images
+
+
+def deduplicate_paths(paths: list[Path]) -> list[Path]:
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for path in paths:
+        key = str(path.resolve()).lower()
+        if key not in seen:
+            seen.add(key)
+            unique.append(path)
+    return unique
 
 
 def load_reference_images(account_dir: Path, wrapper_config: dict[str, Any], run_dir: Path) -> list[Path]:
@@ -574,6 +690,13 @@ def build_run_omni_config(
     patched = copy.deepcopy(source_config)
     patched["master_prompt"] = str(autopilot_config.get("omni_master_prompt") or OMNI_MASTER_PROMPT)
     patch_reference_images(patched, first_frames)
+    total_duration = creative_duration_seconds(patched)
+    if total_duration > 0:
+        variants = patched.setdefault("variants", {})
+        variants["count"] = 1
+        variants["min_total_seconds"] = max(0.1, total_duration - 0.01)
+        variants["max_total_seconds"] = total_duration + 0.01
+        variants["stitch_leaf_segments"] = True
     provider = patched.setdefault("google_omni_flash", dict(patched.get("provider") or {}))
     prefix = str(autopilot_config.get("output_gcs_uri_prefix") or "").rstrip("/")
     if prefix:
@@ -581,6 +704,21 @@ def build_run_omni_config(
     output_path = run_dir / f"{slug(concept_id)}_omni_config.json"
     write_json(output_path, patched)
     return output_path
+
+
+def creative_duration_seconds(config: dict[str, Any]) -> float:
+    fallback = float(dict(config.get("defaults") or {}).get("duration_seconds") or 5)
+    total = 0.0
+    for role in ("hooks", "mains", "meals", "ctas", "desserts", "closings"):
+        for component in list(config.get(role) or []):
+            if not isinstance(component, dict):
+                continue
+            segments = component.get("segments")
+            leaves = segments if isinstance(segments, list) and segments else [component]
+            for leaf in leaves:
+                if isinstance(leaf, dict):
+                    total += float(leaf.get("duration_seconds") or component.get("duration_seconds") or fallback)
+    return round(total, 3)
 
 
 def patch_reference_images(config: dict[str, Any], first_frames: list[Path]) -> None:
@@ -874,7 +1012,14 @@ def run_logged(
     stdout_path.write_text(result.stdout, encoding="utf-8")
     stderr_path.write_text(result.stderr, encoding="utf-8")
     if result.returncode != 0:
-        raise CommandExecutionError(result.returncode, classify_command_failure(result.stderr))
+        detail = safe_subprocess_detail(result.stderr)
+        if detail:
+            print(f"Provider failure: {detail}", file=sys.stderr)
+        raise CommandExecutionError(
+            result.returncode,
+            classify_command_failure(result.stderr),
+            detail,
+        )
     elapsed = round(time.monotonic() - started, 3)
     print(f"Finished in {elapsed}s")
     return result
@@ -909,6 +1054,21 @@ def classify_command_failure(stderr: str) -> str:
     if exception_names:
         return exception_names[-1]
     return "subprocess_failed"
+
+
+def safe_subprocess_detail(stderr: str, *, max_length: int = 600) -> str:
+    lines = [line.strip() for line in str(stderr or "").splitlines() if line.strip()]
+    if not lines:
+        return "subprocess returned no stderr; inspect the uploaded provider logs"
+    detail = lines[-1]
+    redactions = (
+        (r"(?i)(authorization\s*[:=]\s*bearer\s+)[^\s]+", r"\1[REDACTED]"),
+        (r"(?i)((?:api[_-]?key|token|secret)\s*[:=]\s*)[^\s,;]+", r"\1[REDACTED]"),
+        (r"(?i)([?&](?:key|token|api_key)=)[^&\s]+", r"\1[REDACTED]"),
+    )
+    for pattern, replacement in redactions:
+        detail = re.sub(pattern, replacement, detail)
+    return detail[:max_length]
 
 
 def read_json(path: Path) -> dict[str, Any]:

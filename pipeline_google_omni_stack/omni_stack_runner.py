@@ -56,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             raise OmniStackError(f"Unsupported mode: {args.mode}")
     except Exception as exc:
-        print(f"Google Omni stack failed: {exc}", file=sys.stderr)
+        print(f"Google Omni stack failed: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
 
     print(f"Google Omni stack output: {out_dir}")

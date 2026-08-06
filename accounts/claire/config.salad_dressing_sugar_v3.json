@@ -1,0 +1,59 @@
+{
+  "name": "Claire - Salad Dressing Sugar V3",
+  "concept_id": "salad_dressing_sugar",
+  "account_id": "claire",
+  "language": "en-US",
+  "defaults": {"aspect_ratio": "9:16", "duration_seconds": 5, "resolution": "720p"},
+  "master_prompt": "Fast native American TikTok UGC with the same Claire identity and female voice. Create a concrete supermarket-label reveal and simple food demonstration. No fake brands, cure claims, baked captions, or impossible food motion.",
+  "hooks": [
+    {
+      "id": "salad_dessert_hook",
+      "title": "Dessert hiding on salad",
+      "duration_seconds": 5,
+      "script": "Your salad can turn into dessert before you take the first bite.",
+      "prompt": "Dramatic but believable kitchen selfie. Claire holds a healthy salad in one hand and pours an excessive stream from a generic dressing bottle with the other, then freezes with a shocked expression. Correct two-hand anatomy, no extra limbs, no brand. Native dialogue exactly once: Your salad can turn into dessert before you take the first bite."
+    }
+  ],
+  "mains": [
+    {
+      "id": "dressing_label_reveal",
+      "title": "The dressing check",
+      "segments": [
+        {
+          "id": "healthy_front",
+          "duration_seconds": 5,
+          "script": "Words like light and natural make people stop at the front label.",
+          "prompt": "Claire holds a generic unbranded salad-dressing bottle toward the phone, taps its intentionally non-legible front label, and gives a skeptical look. Native dialogue exactly once: Words like light and natural make people stop at the front label."
+        },
+        {
+          "id": "serving_reality",
+          "duration_seconds": 5,
+          "script": "But the serving is smaller than the amount most people actually pour.",
+          "prompt": "Top-down real kitchen shot comparing a measured spoon of dressing with a much larger casual pour over salad. Natural liquid flow and hands, no floating objects. Native dialogue exactly once: But the serving is smaller than the amount most people actually pour."
+        },
+        {
+          "id": "added_sugar_check",
+          "duration_seconds": 5,
+          "script": "Turn it around and check added sugar before the health words distract you.",
+          "prompt": "Close handheld shot of Claire turning a generic bottle to a deliberately soft, unreadable nutrition panel while pointing to the added-sugar area. Native dialogue exactly once: Turn it around and check added sugar before the health words distract you."
+        },
+        {
+          "id": "five_second_dressing",
+          "duration_seconds": 5,
+          "script": "My backup is olive oil, lemon, mustard, salt, and one fast shake.",
+          "prompt": "Medium kitchen-counter shot. Claire adds olive oil, lemon juice, a small spoon of mustard and a pinch of salt to a glass jar, closes it, then gives one quick shake. Real ingredients and physics. Native dialogue exactly once: My backup is olive oil, lemon, mustard, salt, and one fast shake."
+        }
+      ]
+    }
+  ],
+  "ctas": [
+    {
+      "id": "comment_dressing",
+      "title": "Comment DRESSING",
+      "duration_seconds": 5,
+      "script": "Comment DRESSING and I will send you the five-second formula.",
+      "prompt": "Claire holds the sealed dressing jar and finished salad toward the camera, direct eye contact, same kitchen and outfit. Native dialogue exactly once: Comment DRESSING and I will send you the five-second formula."
+    }
+  ],
+  "variants": {"count": 1, "min_total_seconds": 29, "max_total_seconds": 31, "seed": 20260808, "stitch_leaf_segments": true}
+}

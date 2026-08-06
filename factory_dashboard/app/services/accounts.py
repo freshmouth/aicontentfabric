@@ -49,6 +49,7 @@ class AccountCatalog:
         publish_ready = bool(registry_entry.get("manual_publish", False)) or (
             account_dir / "publish_config.json"
         ).exists()
+        publish_enabled = bool(override.get("publish_enabled", autopilot.get("publish_enabled", True)))
         status = (
             "active"
             if effective_enabled and autopilot_ready
@@ -70,6 +71,7 @@ class AccountCatalog:
             "creative_ready": creative_ready,
             "autopilot_ready": autopilot_ready,
             "publish_ready": publish_ready,
+            "publish_enabled": publish_enabled,
             "timezone": timezone,
             "interval_days": interval_days,
             "publish_time": publish_time,

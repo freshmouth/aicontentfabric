@@ -25,7 +25,7 @@
     },
     {
       "account_id": "claire",
-      "enabled": false,
+      "enabled": true,
       "pipeline": "v3",
       "manual_publish": true,
       "autopilot_config": "accounts/claire/autopilot_v3.json"

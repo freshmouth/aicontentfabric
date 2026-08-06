@@ -1,0 +1,44 @@
+{
+  "account_id": "claire",
+  "pipeline": "v3",
+  "enabled": true,
+  "publish_enabled": false,
+  "timezone": "America/Mexico_City",
+  "start_date": "2026-08-06",
+  "interval_days": 1,
+  "publish_time": "18:00",
+  "platforms": "instagram,facebook",
+  "postprocess_preset": "ugc_soft_30fps",
+  "output_gcs_uri_prefix": "gs://ai-content-factory-501821-omni-outputs/accounts/claire/autopilot",
+  "omni_master_prompt": "Create one vertical 9:16 native TikTok UGC scene with spoken American English audio. Preserve Claire's exact identity from the supplied first frame. Claire is a trustworthy 35-year-old natural-health educator with a candid, fast, direct delivery and one consistent warm female American voice. Every leaf is one location, one camera setup, one visual action, and one exact spoken line. Use imperfect handheld smartphone realism, quick purposeful movement, natural skin texture, ordinary kitchens or supermarket aisles, and believable objects. No cinematic polish, no different woman, no male voice, no invented brands, no creator-branded packaging, no baked captions, no social UI, and no medical cure claims.",
+  "first_frame": {
+    "enabled": true,
+    "with_cloudinary_refs": false,
+    "character_reference_images": [
+      "references/character/master_reference.png"
+    ],
+    "local_reference_dir": "content_library/concept_frame_references",
+    "local_reference_max_images": 4,
+    "openai_model": "gpt-image-2",
+    "openai_size": "720x1280",
+    "openai_quality": "medium",
+    "timeout_seconds": 300
+  },
+  "concepts": [
+    {
+      "concept_id": "yogurt_label_trap",
+      "v3_config": "config.v3.yogurt_label_trap.json",
+      "caption": "The front of the yogurt cup is selling a feeling. The useful comparison is hiding on the back. One number changes the whole breakfast decision. Comment SWAP and I will send the supermarket checklist."
+    },
+    {
+      "concept_id": "protein_granola_cookie",
+      "v3_config": "config.v3.protein_granola_cookie.json",
+      "caption": "A protein claim does not automatically make granola a high-protein breakfast. Turn the bag around before the branding makes the decision for you. Comment LABEL and I will send the three numbers I compare."
+    },
+    {
+      "concept_id": "salad_dressing_sugar",
+      "v3_config": "config.v3.salad_dressing_sugar.json",
+      "caption": "Your salad can be simple while the dressing quietly changes the entire meal. The answer is not fear; it is knowing what to compare and having a five-second backup. Comment DRESSING and I will send the formula."
+    }
+  ]
+}

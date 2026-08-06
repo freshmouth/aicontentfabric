@@ -1,0 +1,9 @@
+{
+  "schema_version": 3,
+  "name": "Claire V3 - Yogurt Label Trap",
+  "account_id": "claire",
+  "source_config": "config.yogurt_label_trap_v3.json",
+  "subject_label": "Claire exposing a flavored-yogurt label trap in a lived-in kitchen and supermarket dairy aisle",
+  "subject_placement_hint": "Preserve Claire's exact face, age, skin tone, dark brown messy ponytail, warm brown eyes, natural skin texture, and one consistent casual outfit. Use the canonical account reference for identity and the concept-frame library only for dramatic UGC composition. Generic supermarket yogurt only; no readable brands or creator-branded packaging.",
+  "cloudinary_max_reference_images": 0
+}

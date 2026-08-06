@@ -1,0 +1,59 @@
+{
+  "name": "Claire - Yogurt Label Trap V3",
+  "concept_id": "yogurt_label_trap",
+  "account_id": "claire",
+  "language": "en-US",
+  "defaults": {"aspect_ratio": "9:16", "duration_seconds": 5, "resolution": "720p"},
+  "master_prompt": "Fast native American TikTok UGC with Claire as the same woman and voice in every visible-person scene. One exact spoken line per leaf. Dramatic grocery-label visuals without fake readable nutrition claims, logos, medical claims, or baked text.",
+  "hooks": [
+    {
+      "id": "yogurt_put_it_back",
+      "title": "Put that yogurt back",
+      "duration_seconds": 5,
+      "script": "Put that strawberry yogurt back. The front is doing all the talking.",
+      "prompt": "Extreme close handheld selfie in a supermarket dairy aisle. Claire urgently holds a generic pink yogurt cup inches from the lens, then starts turning it toward the back label. Strong skeptical expression, awkward crop, real fluorescent grocery lighting, no readable brand. Native dialogue exactly once: Put that strawberry yogurt back. The front is doing all the talking."
+    }
+  ],
+  "mains": [
+    {
+      "id": "yogurt_label_breakdown",
+      "title": "The label reveal",
+      "segments": [
+        {
+          "id": "probiotic_halo",
+          "duration_seconds": 5,
+          "script": "The word probiotic makes most people stop reading. That is the trap.",
+          "prompt": "Claire taps the front of a generic yogurt cup, then raises one eyebrow at the phone camera. Dairy aisle or lived-in kitchen, unpolished UGC, no readable packaging. Native dialogue exactly once: The word probiotic makes most people stop reading. That is the trap."
+        },
+        {
+          "id": "added_sugar_reveal",
+          "duration_seconds": 5,
+          "script": "Turn it around and check added sugar before calories.",
+          "prompt": "Macro phone shot of Claire's real hand turning a generic yogurt cup to an intentionally non-legible nutrition panel while her finger indicates the added-sugar area. Natural hand anatomy, no fake readable numbers. Native dialogue exactly once: Turn it around and check added sugar before calories."
+        },
+        {
+          "id": "protein_check",
+          "duration_seconds": 5,
+          "script": "Then compare protein, because two healthy-looking cups can be completely different.",
+          "prompt": "Claire places two generic unbranded yogurt cups side by side on a normal kitchen counter and points between their backs, serious direct-to-camera delivery. Native dialogue exactly once: Then compare protein, because two healthy-looking cups can be completely different."
+        },
+        {
+          "id": "plain_yogurt_swap",
+          "duration_seconds": 5,
+          "script": "My shortcut is plain Greek yogurt, then I add the fruit myself.",
+          "prompt": "Medium-distance lived-in kitchen shot. Claire scoops plain Greek yogurt into a bowl and drops in real berries, quick natural movement, same identity and outfit continuity. Native dialogue exactly once: My shortcut is plain Greek yogurt, then I add the fruit myself."
+        }
+      ]
+    }
+  ],
+  "ctas": [
+    {
+      "id": "comment_swap",
+      "title": "Comment SWAP",
+      "duration_seconds": 5,
+      "script": "Comment SWAP and I will send you my supermarket checklist.",
+      "prompt": "Claire holds the finished yogurt-and-berry bowl close to camera, direct eye contact and one quick nod in the same kitchen. Native dialogue exactly once: Comment SWAP and I will send you my supermarket checklist."
+    }
+  ],
+  "variants": {"count": 1, "min_total_seconds": 29, "max_total_seconds": 31, "seed": 20260806, "stitch_leaf_segments": true}
+}
