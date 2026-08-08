@@ -43,6 +43,8 @@ The `issues` value MUST be a JSON array of critical physical errors. Return []
 when there are no critical errors. Do not include optional improvements there.
 The `forbidden_elements` value MUST be a JSON array. List every visible person,
 object, label, device, or behavior that the requested prompt explicitly forbids.
+Only list an element when it is clearly visible in the generated candidate image.
+Never copy forbidden words from the prompt into this list when those elements are absent.
 
 Scoring rubric, 1-10:
 1. product_placement: the {subject.label} is {subject.placement_hint}; fail if the {subject.label} floats, is detached from the hand/surface, appears physically impossible, is missing, or is replaced by the wrong subject.
@@ -56,6 +58,11 @@ Camera and hand logic:
 - A selfie or front-facing phone-camera frame is photographed by a phone outside the image. Never require that capture phone to be visible or held inside its own frame.
 - If the prompt separately requests a desk phone or another device, judge that prop only in its requested location.
 - If the prompt does not require visible hands and no hands are visible, score hand_realism as 10 unless an anatomical artifact is actually present. Never invent a missing-hand failure just to populate this score.
+
+Character-reference logic:
+- The first attached image is the generated candidate. When additional images are attached, they are canonical character references used only to verify identity.
+- Compare identity only when a canonical reference is attached. Without one, do not claim an identity mismatch from text alone.
+- Clothing may follow the scene prompt and does not need to match a canonical reference unless the prompt explicitly locks the garment.
 
 PASS only when all six scores are 8 or higher, `issues` is empty, and `forbidden_elements` is empty.
 

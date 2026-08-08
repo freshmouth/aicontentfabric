@@ -812,6 +812,7 @@ def generate_first_frames(
                 qa_prompt=str(record["qa_prompt"]),
                 api_key=api_key,
                 model=str(first_frame_config.get("qa_model") or os.getenv("OPENAI_ANALYZER_MODEL") or "gpt-4.1-mini"),
+                reference_images=scene_character_references,
             )
             write_json(output_path.with_suffix(f".attempt_{attempt}.qa.json"), qa_result)
             if first_frame_passed(qa_result, image_prompt=str(record["image_prompt"])):
@@ -835,10 +836,31 @@ def generate_first_frames(
     return generated
 
 
-def evaluate_first_frame(*, image_path: Path, qa_prompt: str, api_key: str, model: str) -> dict[str, Any]:
+def evaluate_first_frame(
+    *,
+    image_path: Path,
+    qa_prompt: str,
+    api_key: str,
+    model: str,
+    reference_images: list[Path] | None = None,
+) -> dict[str, Any]:
     import requests
 
     image_data = base64.b64encode(image_path.read_bytes()).decode("ascii")
+    content: list[dict[str, Any]] = [
+        {"type": "input_text", "text": qa_prompt},
+        {"type": "input_image", "image_url": f"data:image/png;base64,{image_data}", "detail": "high"},
+    ]
+    for reference_path in list(reference_images or []):
+        reference_data = base64.b64encode(reference_path.read_bytes()).decode("ascii")
+        mime_type = "image/jpeg" if reference_path.suffix.lower() in {".jpg", ".jpeg"} else "image/png"
+        content.append(
+            {
+                "type": "input_image",
+                "image_url": f"data:{mime_type};base64,{reference_data}",
+                "detail": "high",
+            }
+        )
     response = requests.post(
         "https://api.openai.com/v1/responses",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
@@ -847,10 +869,7 @@ def evaluate_first_frame(*, image_path: Path, qa_prompt: str, api_key: str, mode
             "input": [
                 {
                     "role": "user",
-                    "content": [
-                        {"type": "input_text", "text": qa_prompt},
-                        {"type": "input_image", "image_url": f"data:image/png;base64,{image_data}", "detail": "high"},
-                    ],
+                    "content": content,
                 }
             ],
             "text": {"format": {"type": "json_object"}},

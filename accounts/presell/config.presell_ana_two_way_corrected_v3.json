@@ -18,7 +18,7 @@
       "character_visible": true,
       "speaker_role": "presenter",
       "subject_label": "the canonical Presell founder filming a serious close office selfie",
-      "subject_placement_hint": "same founder, black fleece, warm occupied office, direct eye contact, no cat, no ringing prop, no baked text",
+      "subject_placement_hint": "same founder, plain black top, warm occupied office, direct eye contact, no cat, no ringing prop, no baked text",
       "script": "Este desarrollo pagó ochenta mil pesos porque respondimos antes que su equipo.",
       "prompt": "The canonical founder records a close imperfect iPhone selfie in the occupied office. He looks serious, not amused, and speaks immediately. Native dialogue exactly once in a consistent Mexican male voice: Este desarrollo pagó ochenta mil pesos porque respondimos antes que su equipo. The amount is Mexican pesos, never dollars. No cutaway, no prop gag, no text overlay."
     }
@@ -46,7 +46,7 @@
           "character_visible": false,
           "speaker_role": "ai_agent",
           "reference_profile": "dashboard",
-          "subject_label": "the Presell software agent opening an outbound call to Ana",
+          "subject_label": "a physical monitor showing the Presell outbound call to Ana",
           "subject_placement_hint": "stable active-call waveform labeled Ana García on the physical Presell dashboard, no human operator visible",
           "script": "Hola, Ana. ¿Qué presupuesto estás buscando?",
           "prompt": "The physical Presell monitor shows an outbound call to Ana García connecting and a restrained active-call waveform. Show no person, face, body, hand, operator, headset employee, presenter, or human reflection anywhere in the frame. The voice comes from the device, not from a visible person. The Presell software agent uses its own consistent calm, lower, neutral Mexican male system voice with subtle clean speaker coloration, clearly different from the founder, and says exactly once: Hola, Ana. ¿Qué presupuesto estás buscando? End after the question and wait for her response."
@@ -57,7 +57,7 @@
           "character_visible": false,
           "speaker_role": "lead",
           "reference_profile": "dashboard",
-          "subject_label": "Ana replying through the same active Presell call",
+          "subject_label": "the same physical monitor showing Ana's inbound waveform",
           "subject_placement_hint": "same physical dashboard and same call, inbound waveform changes color subtly while Ana speaks",
           "script": "Dos recámaras, cerca de Polanco, para este mes.",
           "prompt": "Remain on the exact same physical Presell call. Show no person, face, body, hand, operator, headset employee, presenter, or human reflection anywhere in the frame. Ana is heard offscreen through the device while the inbound waveform activates. She replies in one consistent natural Mexican female voice exactly once: Dos recámaras, cerca de Polanco, para este mes. No male voice, no new interface, and no duplicated turn."
@@ -68,7 +68,7 @@
           "character_visible": false,
           "speaker_role": "ai_agent",
           "reference_profile": "dashboard",
-          "subject_label": "the Presell software agent offering three matching options and a visit",
+          "subject_label": "the same physical Presell dashboard showing three matching options and a visit slot",
           "subject_placement_hint": "same call waveform with three restrained option cards and one calendar availability on the stable dashboard",
           "script": "Perfecto. Tengo tres opciones. ¿Te funciona mañana a las once?",
           "prompt": "The same Presell call continues. Show no person, face, body, hand, operator, headset employee, presenter, or human reflection anywhere in the frame. Three compact matching-property states and one calendar availability appear without moving the dashboard layout. The voice comes from the device. The same calm, lower, neutral Mexican male Presell software-agent voice says exactly once: Perfecto. Tengo tres opciones. ¿Te funciona mañana a las once? No female voice and no extra dialogue."
@@ -79,7 +79,7 @@
           "character_visible": false,
           "speaker_role": "lead",
           "reference_profile": "dashboard",
-          "subject_label": "Ana confirming tomorrow at eleven on the same call",
+          "subject_label": "the same physical Presell dashboard showing Ana confirming tomorrow at eleven",
           "subject_placement_hint": "same stable physical screen, Ana inbound waveform and appointment slot remain visible",
           "script": "Sí, mañana a las once está perfecto.",
           "prompt": "The same call remains connected. Show no person, face, body, hand, operator, headset employee, presenter, or human reflection anywhere in the frame. Ana is heard offscreen through the device while her inbound waveform activates and the eleven o'clock slot stays visible. The same natural Mexican female voice says exactly once: Sí, mañana a las once está perfecto. No male answer and no repeated words."
@@ -90,7 +90,7 @@
           "character_visible": false,
           "speaker_role": "ai_agent",
           "reference_profile": "dashboard",
-          "subject_label": "the Presell software agent confirming the visit and sending options",
+          "subject_label": "the same physical Presell dashboard showing the confirmed visit and sent options",
           "subject_placement_hint": "same dashboard marks visit confirmed and sends three compact option cards in the existing thread",
           "script": "Listo, visita confirmada. Te acabo de enviar las opciones.",
           "prompt": "The same Presell interface marks VISITA CONFIRMADA and sends three restrained option cards inside the existing thread. Show no person, face, body, hand, operator, headset employee, presenter, or human reflection anywhere in the frame. The voice comes from the device. The same calm, lower, neutral Mexican male Presell software-agent voice says exactly once: Listo, visita confirmada. Te acabo de enviar las opciones. No female voice and no additional CTA."

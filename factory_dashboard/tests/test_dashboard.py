@@ -7,6 +7,7 @@ import unittest
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -21,6 +22,7 @@ from tools.account_autopilot import (
     build_manual_execution_config,
     configure_cloud_route,
     derive_visual_hook_text,
+    evaluate_first_frame,
     first_frame_passed,
     load_generation_request,
     load_local_reference_images,
@@ -628,6 +630,30 @@ class DashboardTests(unittest.TestCase):
         self.assertFalse(
             first_frame_passed(false_negative, image_prompt="Woman holding a phone in her hand for the camera.")
         )
+
+    @patch("requests.post")
+    def test_first_frame_qa_receives_canonical_character_reference(self, post):
+        candidate = Path(self.temp.name) / "candidate.png"
+        reference = Path(self.temp.name) / "reference.png"
+        candidate.write_bytes(b"candidate")
+        reference.write_bytes(b"reference")
+        post.return_value = SimpleNamespace(
+            status_code=200,
+            json=lambda: {"output_text": json.dumps({"status": "PASS", "issues": []})},
+        )
+
+        evaluate_first_frame(
+            image_path=candidate,
+            qa_prompt="Compare the candidate with the canonical identity.",
+            api_key="test-key",
+            model="gpt-test",
+            reference_images=[reference],
+        )
+
+        content = post.call_args.kwargs["json"]["input"][0]["content"]
+        self.assertEqual([item["type"] for item in content], ["input_text", "input_image", "input_image"])
+        self.assertIn("Y2FuZGlkYXRl", content[1]["image_url"])
+        self.assertIn("cmVmZXJlbmNl", content[2]["image_url"])
 
     def test_local_reference_loader_combines_account_scoped_directories(self):
         account_dir = Path(self.temp.name) / "account"
