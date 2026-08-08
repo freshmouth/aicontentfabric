@@ -1,0 +1,11 @@
+{
+  "schema_version": 3,
+  "name": "Presell V3 - Quien esta hablando",
+  "account_id": "presell",
+  "source_config": "config.who_is_talking_system_v3.json",
+  "subject_label": "young male founder documenting a live commercial-system implementation inside a busy premium real-estate office",
+  "subject_placement_hint": "Preserve the exact same young male founder from the canonical reference: same face, dark curly hair, light olive skin, age, build, black crewneck shirt, and understated documentary demeanor. Keep one coherent warm premium office with wood desks, glass walls, plants, coworkers, full visible laptops and phones, natural reflections, and real activity. Follow only one prospect named Mariana from entry to reserved apartment. Never introduce another founder or presenter.",
+  "cloudinary_reference_folder": "catalog/presell/ugc-refs",
+  "cloudinary_cached_reference_dir": "references/ugc_v3_cloudinary",
+  "cloudinary_max_reference_images": 3
+}

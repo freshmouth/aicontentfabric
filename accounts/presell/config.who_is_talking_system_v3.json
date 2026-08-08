@@ -1,0 +1,133 @@
+{
+  "name": "Presell - Quien esta hablando V3",
+  "concept_id": "presell_who_is_talking_01",
+  "account_id": "presell",
+  "language": "es-MX",
+  "google_omni_flash": {
+    "model": "gemini-omni-flash-preview",
+    "project_id": "ai-content-factory-501821",
+    "location": "global",
+    "access_token_env": "GOOGLE_OAUTH_ACCESS_TOKEN",
+    "poll_seconds": 10,
+    "timeout_seconds": 1200,
+    "retries": 2,
+    "background": true
+  },
+  "defaults": {
+    "aspect_ratio": "9:16",
+    "duration_seconds": 5,
+    "resolution": "720p"
+  },
+  "master_prompt": "Spanish vertical UGC documentary filmed inside one real-estate office. The office is the main character and must always feel occupied and alive. One founder documents a single prospect named Mariana from first contact to apartment reservation. Build curiosity, confusion, discovery, escalation, awe, and desire only through pacing and visible consequences. One unexpected interruption only. Hard-cut-compatible independent leaves. No advertising performance, no SaaS demo, no motion graphics, no empty office, no fake smiles, and no cinematic polish.",
+  "hooks": [
+    {
+      "id": "founder_eighty_thousand_hook",
+      "title": "Ochenta mil por el sistema",
+      "duration_seconds": 5,
+      "subject_label": "same founder filming himself quietly in a busy real-estate office",
+      "subject_placement_hint": "tight imperfect iPhone selfie, founder in black crewneck close to lens, real coworkers and glass office depth behind him, no text overlay",
+      "script": "Un desarrollo nos pagó ochenta mil dólares por este sistema.",
+      "prompt": "Immediate handheld iPhone selfie inside a warm premium real-estate office. The same young founder in a black crewneck speaks quietly to the phone while coworkers continue working behind glass, unaware of the camera. He is documenting, not pitching. A door at the edge of frame begins to move but nobody interrupts yet. Natural office sound, subtle focus breathing. Native dialogue exactly once: Un desarrollo nos pagó ochenta mil dólares por este sistema."
+    },
+    {
+      "id": "coworker_interrupts",
+      "title": "Quien esta hablando",
+      "duration_seconds": 5,
+      "subject_label": "same founder caught filming when one confused coworker opens the office door",
+      "subject_placement_hint": "same founder remains foreground; exactly one coworker opens the door, no third person near camera, one accidental interruption only",
+      "script": "¿Quién está hablando solo?",
+      "prompt": "Same office and founder, continuous-feeling handheld shot. Exactly one male coworker opens the glass office door and leans in with genuine confusion while the founder freezes and glances toward him. Nobody performs for the camera. This is the only interruption in the entire video. No comedy mugging, no extra people entering, anatomically correct hands. Native dialogue from the coworker exactly once: ¿Quién está hablando solo?"
+    }
+  ],
+  "mains": [
+    {
+      "id": "mariana_commercial_flow",
+      "title": "El sistema convierte un prospecto",
+      "prompt": "Follow only Mariana through one continuously operating commercial flow inside the same office.",
+      "segments": [
+        {
+          "id": "mariana_lead_enters",
+          "duration_seconds": 5,
+          "subject_label": "full MacBook and iPhone showing one new real-estate lead for Mariana",
+          "subject_placement_hint": "founder holds phone-camera over a complete wood desk; full laptop, full phone, keyboard, coffee and office depth all visible; simple legible name Mariana only",
+          "script": "Entró Mariana: dos recámaras, presupuesto de cuatro punto dos millones.",
+          "prompt": "Founder walks the phone-camera toward a real wood desk and discovers a new lead arriving. Show the entire open MacBook and entire iPhone physically on the desk with keyboard, mouse, coffee, reflections, plants, and coworkers moving in background. A clean lead card uses only short readable fields: Mariana, 2 recámaras, $4.2M. No cropped device, no floating UI. Native dialogue exactly once: Entró Mariana: dos recámaras, presupuesto de cuatro punto dos millones."
+        },
+        {
+          "id": "automatic_call_starts",
+          "duration_seconds": 5,
+          "subject_label": "physical desk phone and iPhone beginning a call to Mariana without anyone touching them",
+          "subject_placement_hint": "full devices resting naturally on desk; founder observes from behind camera; no disembodied hand and no device floats",
+          "script": "Nadie tocó el teclado. El sistema ya estaba llamando a Mariana.",
+          "prompt": "A real desk phone rings beside the full MacBook and full iPhone as a call to Mariana begins. No person touches the devices. The founder leans and tilts the handheld camera closer in genuine discovery; coworkers remain busy behind glass. Plausible reflections, cables, weight, and contact shadows. Native dialogue exactly once: Nadie tocó el teclado. El sistema ya estaba llamando a Mariana."
+        },
+        {
+          "id": "qualification_populates_crm",
+          "duration_seconds": 5,
+          "subject_label": "Mariana call active while three CRM qualification fields populate",
+          "subject_placement_hint": "full laptop and phone remain on same wood desk with negative space and office background; only simple fields budget, zone and date",
+          "script": "Le preguntó presupuesto, zona y fecha. El CRM se llenó solo.",
+          "prompt": "Over the founder's shoulder, the call with Mariana remains active on the physical phone while three simple CRM fields update on the full MacBook: presupuesto, zona, fecha. The founder does not touch the keyboard. Camera gently hunts focus between phone and screen; office remains alive. No floating graphics or fake holograms. Native dialogue exactly once: Le preguntó presupuesto, zona y fecha. El CRM se llenó solo."
+        },
+        {
+          "id": "whatsapp_information_sent",
+          "duration_seconds": 5,
+          "subject_label": "Mariana receives brochure, video, floorplans and map through WhatsApp",
+          "subject_placement_hint": "full iPhone upright on a real stand beside full laptop; four plausible media cards, no cropped hardware and no giant text",
+          "script": "Al colgar, envió brochure, video, planos y ubicación por WhatsApp.",
+          "prompt": "The founder walks around the desk and reveals the full iPhone upright on a real stand beside the full MacBook. A WhatsApp thread with Mariana receives four compact plausible attachments: brochure, video, planos, ubicación. Keep screens physically integrated with glare and perspective; no floating UI. Native dialogue exactly once: Al colgar, envió brochure, video, planos y ubicación por WhatsApp."
+        },
+        {
+          "id": "visit_confirmed",
+          "duration_seconds": 5,
+          "subject_label": "Mariana visit appears confirmed for tomorrow at eleven",
+          "subject_placement_hint": "complete desktop display and desk visible; one calendar event for Mariana, founder reflection in glass, office coworkers behind",
+          "script": "Mariana eligió mañana a las once. La visita quedó confirmada.",
+          "prompt": "Handheld founder-camera discovers a single calendar event appearing on a complete desktop display: Mariana, mañana, 11:00. The desk, mouse, keyboard, coffee, plant, glass reflections, and working office remain visible. A nearby coworker notices the confirmation naturally but does not address camera. Native dialogue exactly once: Mariana eligió mañana a las once. La visita quedó confirmada."
+        },
+        {
+          "id": "followup_sequence_ready",
+          "duration_seconds": 5,
+          "subject_label": "thirty-day follow-up sequence activates for Mariana",
+          "subject_placement_hint": "founder films a full laptop showing a restrained vertical sequence, office activity and depth remain visible",
+          "script": "Después dejó treinta días de seguimiento listos, sin perseguirla.",
+          "prompt": "Same desk and office. The full MacBook shows a restrained thirty-day follow-up sequence for Mariana switching to active, with a few simple dated rows and green status marks. Founder gently leans the camera in, then reveals people still working in the background. No flashy animation and no software-commercial framing. Native dialogue exactly once: Después dejó treinta días de seguimiento listos, sin perseguirla."
+        },
+        {
+          "id": "unit_reserved",
+          "duration_seconds": 5,
+          "subject_label": "unit 804 changes to reserved as the business consequence",
+          "subject_placement_hint": "full inventory board on physical monitor with exact simple status APARTADO; founder remains same and reacts subtly",
+          "script": "Y mira esto: la unidad ochocientos cuatro cambió a apartado.",
+          "prompt": "The founder pivots to a complete physical monitor showing a clean real-estate inventory board. One row changes visibly and plausibly: Unidad 804, APARTADO. He gives a restrained surprised breath, not a sales reaction. Keep desk edges, office reflections, coworkers, and full hardware visible. No floating text or extra hands. Native dialogue exactly once: Y mira esto: la unidad ochocientos cuatro cambió a apartado."
+        },
+        {
+          "id": "office_keeps_working",
+          "duration_seconds": 5,
+          "subject_label": "wide living office with Mariana visit and follow-up reflected on a foreground dashboard",
+          "subject_placement_hint": "office is the main character; many people work naturally while one full laptop in foreground shows the consequence",
+          "script": "La oficina siguió trabajando. Un solo lead ya tenía visita y seguimiento.",
+          "prompt": "Founder walks into a wider handheld view of the same warm office. Coworkers type, cross hallways, answer phones, and carry coffee without posing. In the foreground, a complete laptop quietly reflects Mariana's confirmed visit and active follow-up. The office, not software, dominates the frame. Native dialogue exactly once: La oficina siguió trabajando. Un solo lead ya tenía visita y seguimiento."
+        }
+      ]
+    }
+  ],
+  "ctas": [
+    {
+      "id": "comment_system_cta",
+      "title": "Comenta SISTEMA",
+      "duration_seconds": 5,
+      "subject_label": "same founder closes the documentary from inside the still-busy office",
+      "subject_placement_hint": "same founder in black crewneck, imperfect close selfie, office continues naturally behind him, no baked text or logo",
+      "script": "Comenta SISTEMA si quieres implementar este flujo en tu desarrollo.",
+      "prompt": "Same founder returns to a close imperfect selfie while walking slowly through the still-busy office. Behind him, the same desk and active team remain visible; nobody acknowledges the camera. His delivery is low-key and direct, not a commercial pitch. No text overlay or logo. Native dialogue exactly once: Comenta SISTEMA si quieres implementar este flujo en tu desarrollo."
+    }
+  ],
+  "variants": {
+    "count": 1,
+    "min_total_seconds": 54.99,
+    "max_total_seconds": 55.01,
+    "seed": 202608061,
+    "stitch_leaf_segments": true
+  }
+}

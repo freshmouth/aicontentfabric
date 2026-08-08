@@ -43,6 +43,13 @@
       "pipeline": "v3",
       "manual_publish": true,
       "autopilot_config": "accounts/speliers/autopilot_v3.json"
+    },
+    {
+      "account_id": "presell",
+      "enabled": false,
+      "pipeline": "v3",
+      "manual_publish": false,
+      "autopilot_config": "accounts/presell/autopilot_v3.json"
     }
   ]
 }

@@ -1,0 +1,29 @@
+{
+  "folder": "accounts/presell/local-ugc-refs",
+  "references": [
+    {
+      "index": 1,
+      "public_id": "image_bybNn2Q_yxmlmi",
+      "secure_url": "https://res.cloudinary.com/dcvgrrp3r/image/upload/v1777225590/image_bybNn2Q_yxmlmi.jpg",
+      "width": 168,
+      "height": 300,
+      "local_path": "C:\\Users\\emans\\OneDrive\\Documents\\AI Content Factory\\Mix\\runs\\v3_first_image_cloudinary_20260720\\cloudinary_refs\\01_hook_tomar_mas_agua\\cloudinary_ref_01.jpg"
+    },
+    {
+      "index": 2,
+      "public_id": "image_bk36ok9k_khrzns",
+      "secure_url": "https://res.cloudinary.com/dcvgrrp3r/image/upload/v1777225587/image_bk36ok9k_khrzns.jpg",
+      "width": 168,
+      "height": 300,
+      "local_path": "C:\\Users\\emans\\OneDrive\\Documents\\AI Content Factory\\Mix\\runs\\v3_first_image_cloudinary_20260720\\cloudinary_refs\\01_hook_tomar_mas_agua\\cloudinary_ref_02.jpg"
+    },
+    {
+      "index": 3,
+      "public_id": "image_ayrs2Q_tetbtn",
+      "secure_url": "https://res.cloudinary.com/dcvgrrp3r/image/upload/v1777225578/image_ayrs2Q_tetbtn.jpg",
+      "width": 168,
+      "height": 300,
+      "local_path": "C:\\Users\\emans\\OneDrive\\Documents\\AI Content Factory\\Mix\\runs\\v3_first_image_cloudinary_20260720\\cloudinary_refs\\01_hook_tomar_mas_agua\\cloudinary_ref_03.jpg"
+    }
+  ]
+}

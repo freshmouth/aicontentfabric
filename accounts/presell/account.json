@@ -1,0 +1,13 @@
+{
+  "account_id": "presell",
+  "display_name": "Presell",
+  "status": "manual_ready",
+  "pipeline": "v3",
+  "description": "Independent Spanish V3 UGC documentary account for real-estate commercial-system implementation stories.",
+  "paths": {
+    "prompts": "accounts/presell/prompts",
+    "content_library": "accounts/presell/content_library",
+    "runs": "accounts/presell/runs",
+    "logs": "accounts/presell/logs"
+  }
+}
