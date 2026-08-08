@@ -1,0 +1,11 @@
+{
+  "schema_version": 3,
+  "name": "Presell V3 - Ana y agente IA en dos vías",
+  "account_id": "presell",
+  "source_config": "config.presell_ana_two_way_corrected_v3.json",
+  "subject_label": "the exact approved Presell system and the canonical young male founder, each restricted to their assigned scenes",
+  "subject_placement_hint": "Founder scenes preserve the canonical founder and occupied office. Software and lead scenes show only the approved physical Presell dashboard or phone interface, with no visible person, operator, face, body, hand, or headset. Preserve Ana Garcia as the sole prospect and keep every communication turn chronological.",
+  "cloudinary_reference_folder": "catalog/presell/ugc-refs",
+  "cloudinary_cached_reference_dir": "references/ugc_v3_cloudinary",
+  "cloudinary_max_reference_images": 0
+}

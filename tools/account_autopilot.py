@@ -714,6 +714,7 @@ def prepare_v3_manifest(
             "duration_seconds": scene.get("duration_seconds"),
             "character_visible": bool(scene.get("character_visible", True)),
             "speaker_role": str(scene.get("speaker_role") or ""),
+            "reference_profile": str(scene.get("reference_profile") or ""),
             "subject_label": subject.label,
             "subject_placement_hint": subject.placement_hint,
             "image_prompt": image_prompt,
@@ -768,6 +769,7 @@ def generate_first_frames(
     )
     explicit = list(explicit_references or [])
     local_references = load_local_reference_images(account_dir, first_frame_config)
+    reference_profiles = load_reference_profiles(account_dir, first_frame_config)
     aesthetic_references: list[Path] = [*explicit, *local_references]
     if bool(first_frame_config.get("with_cloudinary_refs", True)):
         aesthetic_references.extend(load_reference_images(account_dir, wrapper_config, run_dir))
@@ -778,14 +780,16 @@ def generate_first_frames(
         output_path = run_dir / "first_images" / f"{index:02d}_{scene_id}.png"
         prompt = str(record["image_prompt"])
         scene_character_references = character_references if bool(record.get("character_visible", True)) else []
-        references = deduplicate_paths([*scene_character_references, *aesthetic_references])
+        profile_name = str(record.get("reference_profile") or "").strip()
+        scene_aesthetic_references = reference_profiles.get(profile_name, aesthetic_references) if profile_name else aesthetic_references
+        references = deduplicate_paths([*scene_character_references, *scene_aesthetic_references])
         if scene_character_references:
             prompt += (
                 "\n\nCHARACTER LOCK: The first attached reference image is the canonical identity for this account. "
                 "Preserve the same underlying person, face shape, eyes, nose, age, skin tone, hairline, and overall "
                 "identity. Change only the scene-specific action, object, framing, and clothing requested by the scene."
             )
-        if aesthetic_references:
+        if scene_aesthetic_references:
             prompt += (
                 "\n\nThe remaining attached images are concept-frame and visual-quality references. Use them only "
                 "for composition ideas, aesthetic quality, UGC realism, "
@@ -889,13 +893,20 @@ def first_frame_passed(result: dict[str, Any], *, image_prompt: str = "") -> boo
         )
     if str(result.get("status") or "").upper() != "PASS":
         return False
-    for key in ("product_placement", "hand_realism", "face_quality", "background_realism", "ugc_authenticity"):
+    for key in (
+        "product_placement",
+        "hand_realism",
+        "face_quality",
+        "background_realism",
+        "ugc_authenticity",
+        "prompt_compliance",
+    ):
         try:
             if float(result.get(key) or 0) < 8:
                 return False
         except (TypeError, ValueError):
             return False
-    return not bool(result.get("issues"))
+    return not bool(result.get("issues")) and not bool(result.get("forbidden_elements"))
 
 
 def _selfie_capture_device_false_positive(result: dict[str, Any], image_prompt: str) -> bool:
@@ -997,6 +1008,24 @@ def load_local_reference_images(account_dir: Path, first_frame_config: dict[str,
         raise AccountAutopilotError(f"No local reference images found in: {', '.join(raw_dirs)}")
     images = deduplicate_paths(images)
     return images[:limit] if limit else images
+
+
+def load_reference_profiles(account_dir: Path, first_frame_config: dict[str, Any]) -> dict[str, list[Path]]:
+    raw_profiles = first_frame_config.get("reference_profiles") or {}
+    if not isinstance(raw_profiles, dict):
+        raise AccountAutopilotError("first_frame.reference_profiles must be an object.")
+    profiles: dict[str, list[Path]] = {}
+    for raw_name, raw_dirs in raw_profiles.items():
+        name = str(raw_name or "").strip()
+        if not name:
+            raise AccountAutopilotError("Reference profile names cannot be empty.")
+        values = raw_dirs if isinstance(raw_dirs, list) else [raw_dirs]
+        profile_config = {
+            "local_reference_dirs": values,
+            "local_reference_max_images": first_frame_config.get("local_reference_max_images", 4),
+        }
+        profiles[name] = load_local_reference_images(account_dir, profile_config)
+    return profiles
 
 
 def deduplicate_paths(paths: list[Path]) -> list[Path]:

@@ -53,7 +53,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--silence-duration", default="0.35")
     parser.add_argument("--keep-start", default="0.06")
     parser.add_argument("--keep-end", default="0.08")
-    parser.add_argument("--caption-delay", default="0.16", help="Seconds to delay regular subtitles after silence removal.")
+    parser.add_argument("--caption-delay", default="0.0", help="Seconds to delay regular subtitles after silence removal.")
     return parser
 
 
@@ -97,7 +97,6 @@ def finish_for_publish(
     )
     transcript_path = out_dir / "final_audio_transcript.json"
     write_json(transcript_path, transcript)
-    captions = build_captions_from_words(list(transcript.get("words") or []), trimmed_duration)
     hook_settings = {
         "enabled": True,
         "text": hook_text,
@@ -118,6 +117,8 @@ def finish_for_publish(
         "char_width_factor": 0.5,
         "suppress_regular_captions": True,
     }
+    caption_words = suppress_words_for_hook_overlay(list(transcript.get("words") or []), hook_settings)
+    captions = build_captions_from_words(caption_words, trimmed_duration)
     captions = suppress_captions_for_hook_overlay(captions, hook_settings)
     subtitles_path = out_dir / "subtitles_publish.ass"
     write_ass_subtitles(captions, subtitles_path, width=720, height=1280)
@@ -240,7 +241,7 @@ def build_captions_from_words(words: list[dict[str, Any]], final_duration: float
     for word in words:
         if float(word.get("start") or 0.0) >= final_duration:
             break
-        if chunk and float(word.get("start") or 0.0) - float(chunk[-1].get("end") or 0.0) >= 0.42:
+        if chunk and float(word.get("start") or 0.0) - float(chunk[-1].get("end") or 0.0) >= 0.20:
             captions.append(caption_from_word_chunk(chunk, final_duration))
             chunk = []
         chunk.append(word)
@@ -491,7 +492,26 @@ def suppress_captions_for_hook_overlay(captions: list[dict[str, Any]], settings:
         return captions
     start = float(settings.get("start", 0.0))
     end = start + float(settings.get("duration", 3.2))
-    return [caption for caption in captions if not (float(caption["start"]) < end and float(caption["end"]) > start)]
+    visible: list[dict[str, Any]] = []
+    for caption in captions:
+        caption_start = float(caption["start"])
+        caption_end = float(caption["end"])
+        if caption_end <= start or caption_start >= end:
+            visible.append(caption)
+            continue
+        if caption_end > end + 0.12:
+            trimmed = dict(caption)
+            trimmed["start"] = round(end, 3)
+            visible.append(trimmed)
+    return visible
+
+
+def suppress_words_for_hook_overlay(words: list[dict[str, Any]], settings: dict[str, Any]) -> list[dict[str, Any]]:
+    """Remove only words already represented by the opening hook, before caption grouping."""
+    if not bool(settings.get("enabled", False)) or not bool(settings.get("suppress_regular_captions", True)):
+        return words
+    end = float(settings.get("start", 0.0)) + float(settings.get("duration", 3.2))
+    return [word for word in words if float(word.get("start") or 0.0) >= end]
 
 
 def write_ass_subtitles(captions: list[dict[str, Any]], output_path: Path, *, width: int, height: int) -> None:

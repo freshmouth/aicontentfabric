@@ -8,7 +8,7 @@
     "duration_seconds": 5,
     "resolution": "720p"
   },
-  "master_prompt": "Ultra-realistic vertical iPhone documentary inside one occupied premium real-estate office. Preserve the canonical young male founder only in founder scenes. Screen-only scenes contain no presenter and no human call-center agent. The Presell software agent is a software voice represented only by a stable active-call waveform, status changes, and messages inside the approved dark Presell dashboard. Ana is the same lead throughout. Every communication turn is separate and chronological: software agent, Ana, software agent, Ana, software agent. Keep exact Mexican Spanish, exact speaker identity, one voice per leaf, no repeated dialogue, no clipped words, no subtitles, no captions, no scene labels, no CTA labels, no floating UI, no invented dashboard, no headset employee, no comedy acting, no dollar conversion, and no ambiguous currency.",
+  "master_prompt": "Ultra-realistic vertical iPhone documentary inside one occupied premium real-estate office. Preserve the canonical young male founder only in scenes where character_visible is true and speaker_role is presenter. In every scene where character_visible is false, show only the approved physical Presell dashboard or device: never show the founder, an operator, a headset employee, a face, a body, a hand, or a human reflection. The Presell software agent is heard from the device in its own calm, lower, neutral Mexican male system voice with subtle clean speaker coloration; this voice must be clearly different from the founder's warm natural Mexican male voice. Ana is the same lead throughout and always uses one natural Mexican female voice. Never swap, merge, or reuse voices across roles. Every communication turn is separate and chronological: software agent, Ana, software agent, Ana, software agent. Keep exact Mexican Spanish, exact speaker identity, one voice per leaf, no repeated dialogue, no clipped words, no subtitles, no captions, no scene labels, no CTA labels, no floating UI, no invented dashboard, no headset employee, no comedy acting, no dollar conversion, and no ambiguous currency.",
   "hooks": [
     {
       "id": "hook_ochenta_mil_pesos",
@@ -34,60 +34,66 @@
           "duration_seconds": 5,
           "character_visible": false,
           "speaker_role": "presenter_narration",
+          "reference_profile": "dashboard",
           "subject_label": "a physical monitor showing Ana García entering the approved Presell lead intake",
           "subject_placement_hint": "stable dark Presell dashboard on a real office monitor, Ana García appears once as a new WhatsApp lead at 11:32",
           "script": "A las once treinta y dos entró Ana por WhatsApp.",
-          "prompt": "A real office monitor shows the approved dark Presell interface. Ana García appears once in live intake as a new WhatsApp lead at 11:32. The founder narrates off camera exactly once: A las once treinta y dos entró Ana por WhatsApp. No person answers the call, no headset employee, no floating message, no invented UI."
+          "prompt": "A real office monitor shows the approved dark Presell interface. Ana García appears once in live intake as a new WhatsApp lead at 11:32. The founder narrates off camera exactly once: A las once treinta y dos entró Ana por WhatsApp. The founder is audio-only and must not be visible. Show no person, face, body, hand, operator, headset employee, or human reflection anywhere in the frame. No floating message and no invented UI."
         },
         {
           "id": "ai_agent_first_turn",
           "duration_seconds": 5,
           "character_visible": false,
           "speaker_role": "ai_agent",
+          "reference_profile": "dashboard",
           "subject_label": "the Presell software agent opening an outbound call to Ana",
           "subject_placement_hint": "stable active-call waveform labeled Ana García on the physical Presell dashboard, no human operator visible",
           "script": "Hola, Ana. ¿Qué presupuesto estás buscando?",
-          "prompt": "The physical Presell monitor shows an outbound call to Ana García connecting and a restrained active-call waveform. No human agent appears. A consistent calm Mexican male software-agent voice says exactly once: Hola, Ana. ¿Qué presupuesto estás buscando? End after the question and wait for her response."
+          "prompt": "The physical Presell monitor shows an outbound call to Ana García connecting and a restrained active-call waveform. Show no person, face, body, hand, operator, headset employee, presenter, or human reflection anywhere in the frame. The voice comes from the device, not from a visible person. The Presell software agent uses its own consistent calm, lower, neutral Mexican male system voice with subtle clean speaker coloration, clearly different from the founder, and says exactly once: Hola, Ana. ¿Qué presupuesto estás buscando? End after the question and wait for her response."
         },
         {
           "id": "ana_budget_reply",
           "duration_seconds": 5,
           "character_visible": false,
           "speaker_role": "lead",
+          "reference_profile": "dashboard",
           "subject_label": "Ana replying through the same active Presell call",
           "subject_placement_hint": "same physical dashboard and same call, inbound waveform changes color subtly while Ana speaks",
           "script": "Dos recámaras, cerca de Polanco, para este mes.",
-          "prompt": "Remain on the exact same physical Presell call. The inbound waveform activates while Ana replies in one consistent natural Mexican female voice exactly once: Dos recámaras, cerca de Polanco, para este mes. No male voice, no presenter, no new interface, no duplicated turn."
+          "prompt": "Remain on the exact same physical Presell call. Show no person, face, body, hand, operator, headset employee, presenter, or human reflection anywhere in the frame. Ana is heard offscreen through the device while the inbound waveform activates. She replies in one consistent natural Mexican female voice exactly once: Dos recámaras, cerca de Polanco, para este mes. No male voice, no new interface, and no duplicated turn."
         },
         {
           "id": "ai_agent_options_turn",
           "duration_seconds": 6,
           "character_visible": false,
           "speaker_role": "ai_agent",
+          "reference_profile": "dashboard",
           "subject_label": "the Presell software agent offering three matching options and a visit",
           "subject_placement_hint": "same call waveform with three restrained option cards and one calendar availability on the stable dashboard",
           "script": "Perfecto. Tengo tres opciones. ¿Te funciona mañana a las once?",
-          "prompt": "The same Presell call continues. Three compact matching-property states and one calendar availability appear without moving the dashboard layout. The same Mexican male software-agent voice says exactly once: Perfecto. Tengo tres opciones. ¿Te funciona mañana a las once? No human employee, no female voice, no extra dialogue."
+          "prompt": "The same Presell call continues. Show no person, face, body, hand, operator, headset employee, presenter, or human reflection anywhere in the frame. Three compact matching-property states and one calendar availability appear without moving the dashboard layout. The voice comes from the device. The same calm, lower, neutral Mexican male Presell software-agent voice says exactly once: Perfecto. Tengo tres opciones. ¿Te funciona mañana a las once? No female voice and no extra dialogue."
         },
         {
           "id": "ana_confirms_visit",
           "duration_seconds": 5,
           "character_visible": false,
           "speaker_role": "lead",
+          "reference_profile": "dashboard",
           "subject_label": "Ana confirming tomorrow at eleven on the same call",
           "subject_placement_hint": "same stable physical screen, Ana inbound waveform and appointment slot remain visible",
           "script": "Sí, mañana a las once está perfecto.",
-          "prompt": "The same call remains connected. Ana's inbound waveform activates and the eleven o'clock slot stays visible. The same natural Mexican female voice says exactly once: Sí, mañana a las once está perfecto. No male answer, no presenter, no repeated words."
+          "prompt": "The same call remains connected. Show no person, face, body, hand, operator, headset employee, presenter, or human reflection anywhere in the frame. Ana is heard offscreen through the device while her inbound waveform activates and the eleven o'clock slot stays visible. The same natural Mexican female voice says exactly once: Sí, mañana a las once está perfecto. No male answer and no repeated words."
         },
         {
           "id": "ai_agent_closes_flow",
           "duration_seconds": 6,
           "character_visible": false,
           "speaker_role": "ai_agent",
+          "reference_profile": "dashboard",
           "subject_label": "the Presell software agent confirming the visit and sending options",
           "subject_placement_hint": "same dashboard marks visit confirmed and sends three compact option cards in the existing thread",
           "script": "Listo, visita confirmada. Te acabo de enviar las opciones.",
-          "prompt": "The same Presell interface marks VISITA CONFIRMADA and sends three restrained option cards inside the existing thread. The same Mexican male software-agent voice says exactly once: Listo, visita confirmada. Te acabo de enviar las opciones. No person with headset, no female voice, no additional CTA."
+          "prompt": "The same Presell interface marks VISITA CONFIRMADA and sends three restrained option cards inside the existing thread. Show no person, face, body, hand, operator, headset employee, presenter, or human reflection anywhere in the frame. The voice comes from the device. The same calm, lower, neutral Mexican male Presell software-agent voice says exactly once: Listo, visita confirmada. Te acabo de enviar las opciones. No female voice and no additional CTA."
         },
         {
           "id": "founder_payoff",

@@ -1,7 +1,7 @@
 {
   "account_id": "presell",
   "pipeline": "v3",
-  "enabled": false,
+  "enabled": true,
   "publish_enabled": false,
   "timezone": "America/Mexico_City",
   "start_date": "2026-08-06",
@@ -10,7 +10,7 @@
   "platforms": "instagram,facebook",
   "postprocess_preset": "ugc_soft_30fps",
   "output_gcs_uri_prefix": "gs://ai-content-factory-501821-omni-outputs/accounts/presell/manual",
-  "omni_master_prompt": "Create ONE vertical 9:16 Spanish UGC documentary leaf clip with native spoken audio. Use the attached first frame as the exact visual source of truth. Preserve the same young male founder, warm modern real-estate office, clothing, lighting, devices, and physical layout. The founder documents rather than presents. Natural Mexican Spanish, calm and observant with growing quiet amazement, never a sales-announcer voice. One location, one camera setup, one visual action, and one exact spoken line per leaf. Keep the office alive with coworkers, desks, glass, plants, hallways, reflections, ambient keyboard and phone sounds. Handheld iPhone 15 Pro Max realism, 24fps feeling, micro focus hunting, tiny exposure shifts, no tripod, no digital zoom, no cinematic grading. Never call the system AI, GPT, chatbot, assistant, or automation. No montage inside a leaf, no repeated dialogue, no cut-off sentence, no extra limbs, no fake device, no floating object, no captions, no social UI, and no invented company logos.",
+  "omni_master_prompt": "Create ONE vertical 9:16 Spanish UGC documentary leaf clip with native spoken audio. Use the attached first frame as the exact visual source of truth. The canonical young male founder may appear ONLY when character_visible is true and speaker_role is presenter. In every software-agent or lead turn where character_visible is false, NEVER show the founder, a human operator, a headset employee, a face, a body, or a hand at any point in the clip; show only the exact physical Presell dashboard/device and its restrained call waveform or thread. Voice cast is strict: founder is a warm natural Mexican male; the Presell software agent has its own clearly different calm lower neutral Mexican male system voice with subtle clean speaker coloration; Ana has one natural Mexican female voice. Never swap, merge, or reuse these voices across roles. One location, one camera setup, one visual action, and one exact spoken line per leaf. Keep founder scenes alive with occupied office detail. Handheld iPhone realism, micro focus hunting, tiny exposure shifts, no tripod, no digital zoom, no cinematic grading. No montage inside a leaf, no repeated dialogue, no clipped sentence, no extra limbs, no fake device, no floating object, no captions, no social UI, and no invented company logos.",
   "first_frame": {
     "enabled": true,
     "with_cloudinary_refs": false,
@@ -18,9 +18,13 @@
       "references/character/founder_master_v3.png"
     ],
     "local_reference_dirs": [
-      "references/ugc_v3_cloudinary",
-      "references/dashboard"
+      "references/ugc_v3_cloudinary"
     ],
+    "reference_profiles": {
+      "dashboard": [
+        "references/dashboard"
+      ]
+    },
     "local_reference_max_images": 6,
     "openai_model": "gpt-image-2",
     "openai_size": "720x1280",
@@ -29,9 +33,9 @@
   },
   "concepts": [
     {
-      "concept_id": "who_is_talking_system",
-      "v3_config": "config.v3.who_is_talking_system.json",
-      "caption": "Parecía otra mañana normal en la oficina hasta que entró Mariana. Lo extraño no fue la llamada: fue todo lo que ocurrió después sin detener al equipo. Comenta SISTEMA y te enseño el flujo completo."
+      "concept_id": "presell_ana_two_way_corrected",
+      "v3_config": "config.v3.presell_ana_two_way_corrected.json",
+      "caption": "Ana entró como un lead normal. Antes de que el equipo tocara el teléfono, ya había presupuesto, opciones y visita confirmada. Comenta SISTEMA y te enseño el flujo completo."
     }
   ]
 }

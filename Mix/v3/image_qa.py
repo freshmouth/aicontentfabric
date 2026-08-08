@@ -12,6 +12,8 @@ QA_RESULT_SCHEMA = {
     "face_quality": "number 1-10",
     "background_realism": "number 1-10",
     "ugc_authenticity": "number 1-10",
+    "prompt_compliance": "number 1-10",
+    "forbidden_elements": ["objects or people explicitly prohibited by the prompt"],
     "status": "PASS or FAIL",
     "issues": ["short issue strings"],
 }
@@ -32,11 +34,15 @@ Return strict JSON with these exact keys:
 - face_quality
 - background_realism
 - ugc_authenticity
+- prompt_compliance
+- forbidden_elements
 - status
 - issues
 
 The `issues` value MUST be a JSON array of critical physical errors. Return []
 when there are no critical errors. Do not include optional improvements there.
+The `forbidden_elements` value MUST be a JSON array. List every visible person,
+object, label, device, or behavior that the requested prompt explicitly forbids.
 
 Scoring rubric, 1-10:
 1. product_placement: the {subject.label} is {subject.placement_hint}; fail if the {subject.label} floats, is detached from the hand/surface, appears physically impossible, is missing, or is replaced by the wrong subject.
@@ -44,13 +50,14 @@ Scoring rubric, 1-10:
 3. face_quality: any visible face looks realistic, stable, and not waxy or distorted.
 4. background_realism: the environment matches the requested scene and feels physically real.
 5. ugc_authenticity: the frame feels like an authentic paused UGC video, not a polished ad.
+6. prompt_compliance: every required subject and role is present and no explicitly forbidden element appears. A visible human in a software-only scene is an automatic score of 1.
 
 Camera and hand logic:
 - A selfie or front-facing phone-camera frame is photographed by a phone outside the image. Never require that capture phone to be visible or held inside its own frame.
 - If the prompt separately requests a desk phone or another device, judge that prop only in its requested location.
 - If the prompt does not require visible hands and no hands are visible, score hand_realism as 10 unless an anatomical artifact is actually present. Never invent a missing-hand failure just to populate this score.
 
-PASS only when all five scores are 8 or higher and there are no critical physical errors.
+PASS only when all six scores are 8 or higher, `issues` is empty, and `forbidden_elements` is empty.
 
 Requested image prompt:
 {image_prompt}
@@ -88,6 +95,12 @@ def build_fixed_prompt(
         fixes.append("CRITICAL: Keep the environment physically realistic and matched to the scene.")
     if _score(qa_result.get("ugc_authenticity")) < 8 or "ad" in issues_text:
         fixes.append("CRITICAL: Make the frame feel like a candid paused UGC video, not an advertisement.")
+    forbidden = [str(value) for value in qa_result.get("forbidden_elements") or []]
+    if _score(qa_result.get("prompt_compliance")) < 8 or forbidden:
+        fixes.append(
+            "CRITICAL PROMPT COMPLIANCE: Remove every explicitly forbidden person, object, label, device, or "
+            "behavior. Do not reinterpret a software-only scene as a human operator."
+        )
     if not fixes:
         return original_prompt
     return original_prompt.rstrip() + "\n\n" + "\n".join(fixes)

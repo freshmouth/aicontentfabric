@@ -46,7 +46,7 @@
     },
     {
       "account_id": "presell",
-      "enabled": false,
+      "enabled": true,
       "pipeline": "v3",
       "manual_publish": false,
       "autopilot_config": "accounts/presell/autopilot_v3.json"

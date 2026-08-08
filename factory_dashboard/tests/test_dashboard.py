@@ -24,6 +24,7 @@ from tools.account_autopilot import (
     first_frame_passed,
     load_generation_request,
     load_local_reference_images,
+    load_reference_profiles,
     run_autopilot,
 )
 
@@ -600,11 +601,14 @@ class DashboardTests(unittest.TestCase):
             "face_quality": 9,
             "background_realism": 8,
             "ugc_authenticity": 9,
+            "prompt_compliance": 9,
+            "forbidden_elements": [],
             "issues": [],
         }
         self.assertTrue(first_frame_passed(passing))
         self.assertFalse(first_frame_passed({**passing, "hand_realism": 7}))
         self.assertFalse(first_frame_passed({**passing, "issues": ["floating object"]}))
+        self.assertFalse(first_frame_passed({**passing, "forbidden_elements": ["human headset operator"]}))
 
     def test_first_frame_gate_does_not_require_selfie_camera_inside_frame(self):
         false_negative = {
@@ -643,6 +647,25 @@ class DashboardTests(unittest.TestCase):
         )
 
         self.assertEqual([path.name for path in references], ["ugc.png", "dashboard.png"])
+
+    def test_reference_profiles_isolate_dashboard_scenes(self):
+        account_dir = Path(self.temp.name) / "account"
+        ugc_dir = account_dir / "refs" / "ugc"
+        dashboard_dir = account_dir / "refs" / "dashboard"
+        ugc_dir.mkdir(parents=True)
+        dashboard_dir.mkdir(parents=True)
+        (ugc_dir / "person.png").write_bytes(b"image")
+        (dashboard_dir / "approved_ui.png").write_bytes(b"image")
+
+        profiles = load_reference_profiles(
+            account_dir,
+            {
+                "reference_profiles": {"dashboard": ["refs/dashboard"]},
+                "local_reference_max_images": 5,
+            },
+        )
+
+        self.assertEqual([path.name for path in profiles["dashboard"]], ["approved_ui.png"])
 
 
 if __name__ == "__main__":
