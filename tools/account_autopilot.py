@@ -314,9 +314,6 @@ def run_autopilot(
         "execution_mode": "manual_dashboard" if generation_request else "autopilot",
         "request_id": str(args.request_id or generation_request.get("request_id") or "") if generation_request else "",
     }
-    if args.plan_only:
-        plan["plan_only"] = True
-        return plan
     if not due and not args.force:
         return plan
 
@@ -367,6 +364,14 @@ def run_autopilot(
         run_dir / "creative_preflight.json",
         {**creative_preflight, "account_id": account_id, "concept_id": str(concept["concept_id"])},
     )
+    if args.plan_only:
+        plan["plan_only"] = True
+        plan["creative_preflight"] = creative_preflight
+        plan["run_dir"] = str(run_dir)
+        write_json(run_dir / "autopilot_plan.json", plan)
+        append_execution_event(run_dir, "creative_preflight", "succeeded")
+        append_execution_event(run_dir, "pipeline", "succeeded")
+        return plan
 
     v3_manifest = run_checked(
         "prepare_v3_manifest",
