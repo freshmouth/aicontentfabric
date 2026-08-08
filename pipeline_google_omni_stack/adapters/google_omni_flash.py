@@ -375,10 +375,12 @@ def get_access_token(env_name: str) -> str:
 def get_service_account_access_token() -> str:
     raw_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
     credentials_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
-    if not raw_json and not credentials_path:
+    impersonate = os.environ.get("GOOGLE_IMPERSONATE_SERVICE_ACCOUNT", "").strip()
+    if not raw_json and not credentials_path and not impersonate:
         return ""
     try:
         import google.auth
+        from google.auth import impersonated_credentials
         from google.auth.transport.requests import Request
         from google.oauth2 import service_account
     except ImportError as exc:
@@ -397,6 +399,13 @@ def get_service_account_access_token() -> str:
             credentials = service_account.Credentials.from_service_account_info(info, scopes=scopes)
         else:
             credentials, _ = google.auth.default(scopes=scopes)
+        if impersonate:
+            credentials = impersonated_credentials.Credentials(
+                source_credentials=credentials,
+                target_principal=impersonate,
+                target_scopes=scopes,
+                lifetime=3600,
+            )
         credentials.refresh(Request())
     except Exception as exc:
         raise GoogleOmniError(f"Failed to mint Google Application Default Credentials access token: {exc}") from exc

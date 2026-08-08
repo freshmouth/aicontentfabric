@@ -241,6 +241,25 @@ tbody tr:last-child td { border-bottom: 0; }
 .toast.error { background: #8e3c31; }
 .auth-screen { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: rgba(244,245,242,.96); }
 .auth-screen.hidden { display: none; }
+.remember-device { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; font-size: 11px; color: var(--muted); }
+.remember-device input { width: 16px; height: 16px; }
+.drop-overlay { position: fixed; inset: 14px; z-index: 90; display: grid; place-items: center; border: 2px dashed #397a60; border-radius: 8px; background: rgba(239, 246, 241, .94); pointer-events: none; }
+.drop-overlay.hidden { display: none; }
+.drop-overlay > div { display: grid; justify-items: center; gap: 8px; color: #215942; }
+.drop-overlay svg { width: 34px; height: 34px; }
+.drop-overlay strong { font-size: 17px; }
+.drop-overlay span { color: var(--muted); font-size: 11px; }
+.video-history-section { margin-top: 22px; }
+.video-history { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+.video-history-card { min-width: 0; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--panel); }
+.video-history-card video { display: block; width: 100%; aspect-ratio: 9 / 16; max-height: 480px; background: #111; object-fit: contain; }
+.video-history-card > div { display: grid; gap: 3px; padding: 10px 11px; }
+.video-history-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.video-history-card span { color: var(--muted); font-size: 9px; }
+.job-actions { display: inline-flex; gap: 8px; align-items: center; }
+.cloud-route-form { border-left: 1px solid var(--line); }
+.field-group-heading { grid-column: 1 / -1; }
+.field-group-heading h3 { margin-top: 3px; }
 .auth-dialog { width: min(360px, calc(100vw - 32px)); padding: 28px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); box-shadow: var(--shadow); }
 .auth-dialog h2 { margin-top: 18px; font-size: 19px; }
 .auth-dialog p { margin: 6px 0 16px; color: var(--muted); font-size: 11px; }

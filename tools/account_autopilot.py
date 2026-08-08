@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import base64
 import copy
+import hashlib
 import json
 import os
 import re
@@ -359,6 +360,15 @@ def run_autopilot(
         )
         raise StageExecutionError("creative_preflight", exc) from exc
     source_config_path = run_dir / "compiled_source_config.json"
+    cloud_route = configure_cloud_route(
+        account_id=account_id,
+        generation_request=generation_request,
+        source_config=source_config,
+        config=config,
+        run_id=run_id,
+    )
+    if cloud_route:
+        plan["cloud_route"] = public_cloud_route(cloud_route)
     write_json(source_config_path, source_config)
     write_json(
         run_dir / "creative_preflight.json",
@@ -428,6 +438,11 @@ def run_autopilot(
             config=config,
             today=today,
             concept_id=str(concept["concept_id"]),
+            run_id=run_id,
+            destination_uri=str(cloud_route.get("master_output_gcs_uri") or "") if cloud_route else "",
+            result_uri=str(cloud_route.get("result_gcs_uri") or "") if cloud_route else "",
+            staging_prefix=str(cloud_route.get("job_staging_gcs_uri_prefix") or "") if cloud_route else "",
+            cleanup_staging=bool(cloud_route.get("cleanup_staging", False)) if cloud_route else False,
         ),
         run_dir=run_dir,
     )
@@ -475,6 +490,68 @@ def run_autopilot(
     return result
 
 
+def configure_cloud_route(
+    *,
+    account_id: str,
+    generation_request: dict[str, Any] | None,
+    source_config: dict[str, Any],
+    config: dict[str, Any],
+    run_id: str,
+) -> dict[str, Any]:
+    route = dict((generation_request or {}).get("cloud_route") or {})
+    os.environ.pop("GOOGLE_IMPERSONATE_SERVICE_ACCOUNT", None)
+    if not route:
+        return {}
+    if normalize_account_id(str(route.get("account_id") or account_id)) != account_id:
+        raise AccountAutopilotError("Google Cloud route belongs to a different account.")
+    master_output = str(route.get("master_output_gcs_uri") or "").strip()
+    result_uri = str(route.get("result_gcs_uri") or "").strip()
+    if not master_output.startswith("gs://") or not result_uri.startswith("gs://"):
+        raise AccountAutopilotError("Dashboard cloud route requires master output and result GCS URIs.")
+    account_marker = f"/accounts/{account_id}/"
+    if account_marker not in f"{master_output}/" or account_marker not in f"{result_uri}/":
+        raise AccountAutopilotError("Master cloud output is not scoped to the selected account.")
+
+    project = str(route.get("generation_project_id") or "").strip()
+    service_account = str(route.get("generation_service_account") or "").strip()
+    staging = str(route.get("staging_gcs_uri_prefix") or "").strip().rstrip("/")
+    configured_values = [project, service_account, staging]
+    if any(configured_values) and not all(configured_values):
+        raise AccountAutopilotError(
+            "Google Cloud generation routing requires project, service account, and staging prefix together."
+        )
+    if all(configured_values):
+        if not service_account.endswith(".iam.gserviceaccount.com"):
+            raise AccountAutopilotError("Invalid generation service account.")
+        if f"/accounts/{account_id}" not in staging:
+            raise AccountAutopilotError("Generation staging is not scoped to the selected account.")
+        job_staging = f"{staging}/jobs/{slug(run_id)}"
+        provider = dict(source_config.get("google_omni_flash") or source_config.get("provider") or {})
+        source_config["google_omni_flash"] = provider
+        provider["project_id"] = project
+        provider["location"] = str(route.get("generation_location") or "global")
+        config["generation_output_gcs_uri_prefix"] = job_staging
+        os.environ["GOOGLE_IMPERSONATE_SERVICE_ACCOUNT"] = service_account
+        route["job_staging_gcs_uri_prefix"] = job_staging
+    return route
+
+
+def public_cloud_route(route: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: route.get(key)
+        for key in (
+            "account_id",
+            "generation_project_id",
+            "generation_service_account",
+            "generation_location",
+            "job_staging_gcs_uri_prefix",
+            "master_output_gcs_uri",
+            "cleanup_staging",
+        )
+        if route.get(key) not in (None, "")
+    }
+
+
 def persist_final_video(
     *,
     account_id: str,
@@ -482,6 +559,11 @@ def persist_final_video(
     config: dict[str, Any],
     today: date,
     concept_id: str,
+    run_id: str,
+    destination_uri: str = "",
+    result_uri: str = "",
+    staging_prefix: str = "",
+    cleanup_staging: bool = False,
 ) -> dict[str, Any]:
     prefix_uri = str(config.get("output_gcs_uri_prefix") or "").strip().rstrip("/")
     if not prefix_uri.startswith("gs://"):
@@ -495,20 +577,73 @@ def persist_final_video(
         from google.cloud import storage
     except ImportError as exc:
         raise AccountAutopilotError("Durable cloud output requires google-cloud-storage.") from exc
-    object_name = (
-        f"{prefix}/{today.strftime('%Y%m%d')}/{slug(concept_id)}/final/"
-        f"final_video_{slug(account_id)}_{today.strftime('%Y%m%d')}.mp4"
-    )
+    if destination_uri:
+        bucket_name, object_name = split_gcs_uri(destination_uri)
+    else:
+        object_name = (
+            f"{prefix}/{today.strftime('%Y%m%d')}/{slug(concept_id)}/{slug(run_id)}/final/"
+            f"final_video_{slug(account_id)}_{today.strftime('%Y%m%d')}.mp4"
+        )
     client = storage.Client(project=os.environ.get("GOOGLE_CLOUD_PROJECT") or None)
     blob = client.bucket(bucket_name).blob(object_name)
-    blob.upload_from_filename(str(video_path), content_type="video/mp4")
-    return {
+    local_md5 = base64.b64encode(hashlib.md5(video_path.read_bytes()).digest()).decode("ascii")
+    if blob.exists():
+        blob.reload()
+        if str(blob.md5_hash or "") != local_md5 or int(blob.size or 0) != int(video_path.stat().st_size):
+            raise AccountAutopilotError("The master archive object already exists with different content.")
+    else:
+        blob.upload_from_filename(str(video_path), content_type="video/mp4", if_generation_match=0)
+        blob.reload()
+    if int(blob.size or 0) != int(video_path.stat().st_size) or str(blob.md5_hash or "") != local_md5:
+        raise AccountAutopilotError("Master archive verification failed; temporary outputs were retained.")
+    archived = {
         "provider": "google_cloud_storage",
         "bucket": bucket_name,
         "object_name": object_name,
         "gcs_uri": f"gs://{bucket_name}/{object_name}",
         "size_bytes": int(video_path.stat().st_size),
+        "md5_hash": local_md5,
+        "verified": True,
+        "run_id": run_id,
     }
+    if result_uri:
+        result_bucket, result_object = split_gcs_uri(result_uri)
+        if result_bucket != bucket_name:
+            raise AccountAutopilotError("Result manifest must use the same master bucket as the final video.")
+        client.bucket(result_bucket).blob(result_object).upload_from_string(
+            json.dumps({"account_id": account_id, "status": "succeeded", "hosted_video": archived}, indent=2),
+            content_type="application/json",
+        )
+        archived["result_gcs_uri"] = result_uri
+    if cleanup_staging and staging_prefix:
+        archived["staging_cleanup"] = cleanup_staging_objects(
+            client=client,
+            staging_prefix=staging_prefix,
+            destination_uri=archived["gcs_uri"],
+            run_id=run_id,
+        )
+    return archived
+
+
+def split_gcs_uri(uri: str) -> tuple[str, str]:
+    bucket, separator, object_name = str(uri or "").removeprefix("gs://").partition("/")
+    if not separator or not bucket or not object_name:
+        raise AccountAutopilotError(f"Invalid Cloud Storage URI: {uri}")
+    return bucket, object_name
+
+
+def cleanup_staging_objects(*, client: Any, staging_prefix: str, destination_uri: str, run_id: str) -> dict[str, Any]:
+    bucket_name, prefix = split_gcs_uri(staging_prefix.rstrip("/"))
+    destination_bucket, destination_object = split_gcs_uri(destination_uri)
+    if slug(run_id) not in slug(prefix):
+        raise AccountAutopilotError("Refusing cleanup because the staging prefix is not job-scoped.")
+    if bucket_name == destination_bucket and destination_object.startswith(f"{prefix}/"):
+        raise AccountAutopilotError("Refusing cleanup because the master video is inside staging.")
+    deleted = 0
+    for candidate in client.list_blobs(bucket_name, prefix=f"{prefix}/"):
+        candidate.delete(if_generation_match=int(candidate.generation))
+        deleted += 1
+    return {"status": "completed", "deleted_objects": deleted, "prefix": staging_prefix}
 
 
 def run_checked(stage: str, operation: Any, *, run_dir: Path | None = None) -> Any:
@@ -850,7 +985,11 @@ def build_run_omni_config(
         variants["max_total_seconds"] = total_duration + 0.01
         variants["stitch_leaf_segments"] = True
     provider = patched.setdefault("google_omni_flash", dict(patched.get("provider") or {}))
-    prefix = str(autopilot_config.get("output_gcs_uri_prefix") or "").rstrip("/")
+    prefix = str(
+        autopilot_config.get("generation_output_gcs_uri_prefix")
+        or autopilot_config.get("output_gcs_uri_prefix")
+        or ""
+    ).rstrip("/")
     if prefix:
         provider["output_gcs_uri"] = f"{prefix}/{today.strftime('%Y%m%d')}/{slug(concept_id)}/outputs/"
     output_path = run_dir / f"{slug(concept_id)}_omni_config.json"
@@ -1071,8 +1210,8 @@ def load_generation_request(path_value: str, *, expected_account_id: str) -> dic
         if not isinstance(source.get(key), list) or not source[key]:
             raise AccountAutopilotError(f"Dashboard source_config requires non-empty {key}.")
     attachments = list(request.get("reference_attachments") or [])
-    if len(attachments) > 6:
-        raise AccountAutopilotError("Dashboard request supports at most 6 reference attachments.")
+    if len(attachments) > 20:
+        raise AccountAutopilotError("Dashboard request supports at most 20 reference attachments.")
     for item in attachments:
         if not isinstance(item, dict):
             raise AccountAutopilotError("Dashboard reference attachment must be an object.")
@@ -1080,12 +1219,20 @@ def load_generation_request(path_value: str, *, expected_account_id: str) -> dic
             raise AccountAutopilotError("Dashboard reference attachment belongs to a different account.")
         if not str(item.get("storage_uri") or "").startswith("gs://"):
             raise AccountAutopilotError("Dashboard reference attachment must use a Cloud Storage URI.")
+    cloud_route = dict(request.get("cloud_route") or {})
+    if cloud_route:
+        if normalize_account_id(str(cloud_route.get("account_id") or "")) != expected_account_id:
+            raise AccountAutopilotError("Dashboard Google Cloud route belongs to a different account.")
+        for key in ("master_output_gcs_uri", "result_gcs_uri"):
+            if not str(cloud_route.get(key) or "").startswith("gs://"):
+                raise AccountAutopilotError(f"Dashboard Google Cloud route requires {key}.")
     return {
         **request,
         "account_id": account_id,
         "concept_id": concept_id,
         "source_config": source,
         "reference_attachments": attachments,
+        "cloud_route": cloud_route,
     }
 
 

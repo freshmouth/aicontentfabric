@@ -12,6 +12,8 @@ The dashboard is a separate cloud control plane for the existing account-isolate
 - Versioned revisions and approvals
 - Test or live cloud generation
 - GitHub Actions execution status
+- Durable video history with authenticated inline previews
+- Per-account Google Cloud generation routing with temporary-output cleanup
 - Metricool scheduling through the existing pipeline
 - Cloud scheduler ticks with duplicate-run protection
 
@@ -41,6 +43,8 @@ python -m uvicorn factory_dashboard.app.main:app --host 127.0.0.1 --port 8088
 
 Open `http://127.0.0.1:8088` and enter `local-dev-token`.
 
+The browser exchanges the token for a signed, `HttpOnly`, `SameSite=Strict` session cookie. With **Keep this computer signed in** enabled, the session lasts 90 days by default (`DASHBOARD_SESSION_DAYS`) without storing the raw dashboard token in browser storage.
+
 ## Cloud Runtime
 
 The production deployment uses:
@@ -66,9 +70,39 @@ The GitHub token needs Actions read/write access for `freshmouth/aicontentfabric
 
 ## Creative Photo References
 
-Use the paperclip in Creative Lab to attach up to six JPEG, PNG, or WebP photos, each no larger than 8 MB. The original files are stored under `factory-dashboard/uploads/<account_id>/` and are sent to the OpenAI creative request as image inputs. Draft metadata stores only the account-scoped attachment record; references from one account are rejected if used by another account.
+Use the paperclip or drag a batch from Windows into Creative Lab to attach up to 20 JPEG, PNG, or WebP photos, each no larger than 8 MB. Press `Enter` to send and `Shift+Enter` for a new line. The original files are stored under `factory-dashboard/uploads/<account_id>/` and are sent to the OpenAI creative request as image inputs. Draft metadata stores only the account-scoped attachment record; references from one account are rejected if used by another account.
 
 For local development, leave `DASHBOARD_UPLOAD_BUCKET` empty and uploads are written to the gitignored `factory_dashboard/.data/uploads/` directory. Cloud Run uses `ai-content-factory-501821-omni-outputs`.
+
+## Multi-Project Google Cloud Routing
+
+Each account can save an independent generation route from the dashboard or with:
+
+```http
+PATCH /api/accounts/<account_id>/cloud-route
+Content-Type: application/json
+
+{
+  "generation_project_id": "client-generation-project",
+  "generation_service_account": "video-worker@client-generation-project.iam.gserviceaccount.com",
+  "generation_location": "global",
+  "staging_gcs_uri_prefix": "gs://client-staging/accounts/<account_id>",
+  "master_gcs_uri_prefix": "gs://factory-master/accounts/<account_id>",
+  "cleanup_staging": true
+}
+```
+
+No service-account keys are stored. The central GitHub Workload Identity principal impersonates the configured account service account using short-lived credentials. Grant the central worker permission to impersonate that service account, and grant the account service account only the generation and staging permissions it needs.
+
+For every job, the worker:
+
+1. Generates into `staging_gcs_uri_prefix/jobs/<job_id>/` with the account's short-lived identity.
+2. Uploads the finished video to `master_gcs_uri_prefix/generation-history/<job_id>/final_video.mp4` using the master identity.
+3. Reloads the master object and verifies its byte size and MD5 checksum.
+4. Writes `result.json` beside the final video.
+5. Deletes only the generation-matched objects inside that job's staging prefix.
+
+If archive verification fails, staging is retained and the job fails clearly. The dashboard proxies byte-range requests from the private master bucket, so completed videos appear as playable previews while remaining private.
 
 ## Deploy
 

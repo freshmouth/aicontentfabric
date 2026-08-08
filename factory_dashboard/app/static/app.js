@@ -1,5 +1,4 @@
 const state = {
-  token: sessionStorage.getItem("factoryToken") || "",
   accounts: [],
   selectedAccountId: localStorage.getItem("factoryAccount") || "",
   drafts: [],
@@ -7,6 +6,7 @@ const state = {
   selectedDraftId: null,
   liveMode: false,
   pendingAttachments: [],
+  dragDepth: 0,
 };
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
@@ -29,6 +29,12 @@ function bindEvents() {
   ["#newDraftButton", "#addDraftIcon"].forEach((id) => $(id).addEventListener("click", newDraft));
   $("#quickGenerateButton").addEventListener("click", () => { showView("creative"); $("#chatInput").focus(); });
   $("#chatForm").addEventListener("submit", sendChat);
+  $("#chatInput").addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+      event.preventDefault();
+      $("#chatForm").requestSubmit();
+    }
+  });
   $("#attachPhotoButton").addEventListener("click", () => $("#photoInput").click());
   $("#photoInput").addEventListener("change", (event) => uploadPhotos(event.target.files));
   $("#dispatchButton").addEventListener("click", dispatchDraft);
@@ -37,12 +43,27 @@ function bindEvents() {
   $("#liveMode").addEventListener("click", () => setMode(true));
   $$("[data-status]").forEach((button) => button.addEventListener("click", () => updateDraftStatus(button.dataset.status)));
   $("#saveSchedule").addEventListener("click", saveSchedule);
-  $("#authForm").addEventListener("submit", (event) => {
+  $("#saveCloudRoute").addEventListener("click", saveCloudRoute);
+  document.addEventListener("dragenter", handleDragEnter);
+  document.addEventListener("dragover", handleDragOver);
+  document.addEventListener("dragleave", handleDragLeave);
+  document.addEventListener("drop", handleDrop);
+  $("#authForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    state.token = $("#tokenInput").value.trim();
-    sessionStorage.setItem("factoryToken", state.token);
-    $("#authScreen").classList.add("hidden");
-    loadBootstrap();
+    const token = $("#tokenInput").value.trim();
+    try {
+      const response = await fetch("/api/auth/session", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, remember_device: $("#rememberDevice").checked }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || "Authentication failed");
+      $("#tokenInput").value = "";
+      $("#authScreen").classList.add("hidden");
+      await loadBootstrap();
+    } catch (error) { toast(error.message, true); }
   });
 }
 
@@ -50,12 +71,11 @@ async function api(path, options = {}) {
   const { timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, ...fetchOptions } = options;
   const headers = { ...(options.headers || {}) };
   if (!(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
-  if (state.token) headers.Authorization = `Bearer ${state.token}`;
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   let response;
   try {
-    response = await fetch(path, { ...fetchOptions, headers, signal: controller.signal });
+    response = await fetch(path, { ...fetchOptions, headers, credentials: "same-origin", signal: controller.signal });
   } catch (error) {
     if (error.name === "AbortError") {
       throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)} seconds. Nothing was queued.`);
@@ -82,8 +102,8 @@ async function streamCreative(payload, onStatus) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
       },
+      credentials: "same-origin",
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
@@ -186,6 +206,7 @@ function renderAccounts() {
 }
 
 function renderJobs() {
+  renderVideoHistory();
   const rows = state.jobs.length ? state.jobs.map(jobRow).join("") : `<tr><td colspan="7" class="empty-row">No cloud jobs for this account yet.</td></tr>`;
   $("#allJobs").innerHTML = rows;
   $("#recentJobs").innerHTML = state.jobs.length ? state.jobs.slice(0, 6).map((job) => `
@@ -194,6 +215,15 @@ function renderJobs() {
 
 function jobRow(job) {
   return `<tr><td>${escapeHtml(job.id)}</td><td>${escapeHtml(job.concept_id)}</td><td>${statusPill(job.status)}</td><td>${job.dry_run ? "Test" : "Live"}</td><td>${formatDate(job.publish_at)}</td><td>${formatDate(job.updated_at)}</td><td>${job.github_run_url ? `<a class="job-link" href="${job.github_run_url}" target="_blank">Open ↗</a>` : "Matching run..."}</td></tr>`;
+}
+
+function renderVideoHistory() {
+  const completed = state.jobs.filter((job) => job.status === "succeeded" && job.output_size_bytes).slice(0, 24);
+  $("#videoHistory").innerHTML = completed.length ? completed.map((job) => `
+    <article class="video-history-card">
+      <video controls playsinline preload="metadata" src="/api/jobs/${encodeURIComponent(job.id)}/video"></video>
+      <div><strong>${escapeHtml(job.concept_id)}</strong><span>${formatDate(job.completed_at || job.updated_at)} · ${formatBytes(job.output_size_bytes)}</span></div>
+    </article>`).join("") : `<div class="empty-row">Completed videos will appear here automatically.</div>`;
 }
 
 function renderDrafts() {
@@ -237,6 +267,13 @@ function renderSchedule(account) {
   $("#scheduleRequirement").textContent = account.autopilot_ready
     ? "Recurring generation uses this account's approved concept rotation. Manual drafts and direct publishing remain available independently."
     : "Manual drafts, direct cloud generation, and Metricool publishing are available. Add an autopilot manifest only when you want recurring scheduled generation.";
+  const route = account.cloud_route || {};
+  $("#generationProject").value = route.generation_project_id || "";
+  $("#generationServiceAccount").value = route.generation_service_account || "";
+  $("#generationLocation").value = route.generation_location || "global";
+  $("#stagingPrefix").value = route.staging_gcs_uri_prefix || "";
+  $("#masterPrefix").value = route.master_gcs_uri_prefix || "";
+  $("#cleanupStaging").checked = route.cleanup_staging !== false;
 }
 
 async function sendChat(event) {
@@ -321,6 +358,28 @@ async function saveSchedule() {
   finally { setBusy(button, false, "Save schedule"); }
 }
 
+async function saveCloudRoute() {
+  const button = $("#saveCloudRoute"); setBusy(button, true, "Saving");
+  try {
+    const account = await api(`/api/accounts/${state.selectedAccountId}/cloud-route`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        generation_project_id: $("#generationProject").value.trim(),
+        generation_service_account: $("#generationServiceAccount").value.trim(),
+        generation_location: $("#generationLocation").value.trim() || "global",
+        staging_gcs_uri_prefix: $("#stagingPrefix").value.trim(),
+        master_gcs_uri_prefix: $("#masterPrefix").value.trim(),
+        cleanup_staging: $("#cleanupStaging").checked,
+      }),
+    });
+    const index = state.accounts.findIndex((item) => item.account_id === account.account_id);
+    state.accounts[index] = account;
+    render();
+    toast("Account-specific Google Cloud route saved.");
+  } catch (error) { toast(error.message, true); }
+  finally { setBusy(button, false, "Save cloud route"); }
+}
+
 function newDraft() {
   clearPendingAttachments(); state.selectedDraftId = null; showView("creative"); renderWorkbench(); $("#chatInput").focus();
 }
@@ -330,8 +389,8 @@ async function uploadPhotos(fileList) {
   $("#photoInput").value = "";
   if (!files.length) return;
   const draftAttachmentCount = selectedDraft()?.attachments?.length || 0;
-  const room = 6 - draftAttachmentCount - state.pendingAttachments.length;
-  if (room <= 0) { toast("A draft can use at most 6 reference photos.", true); return; }
+  const room = 20 - draftAttachmentCount - state.pendingAttachments.length;
+  if (room <= 0) { toast("A draft can use at most 20 reference photos.", true); return; }
   const selected = files.slice(0, room);
   if (selected.length < files.length) toast(`Only ${selected.length} more photo${selected.length === 1 ? "" : "s"} can be attached.`, true);
   const button = $("#attachPhotoButton");
@@ -353,6 +412,39 @@ async function uploadPhotos(fileList) {
     toast(`${selected.length} reference photo${selected.length === 1 ? "" : "s"} attached.`);
   } catch (error) { toast(error.message, true); }
   finally { button.disabled = false; }
+}
+
+function handleDragEnter(event) {
+  if (!hasDraggedFiles(event)) return;
+  event.preventDefault();
+  state.dragDepth += 1;
+  $("#dropOverlay").classList.remove("hidden");
+}
+
+function handleDragOver(event) {
+  if (!hasDraggedFiles(event)) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "copy";
+}
+
+function handleDragLeave(event) {
+  if (!state.dragDepth) return;
+  event.preventDefault();
+  state.dragDepth = Math.max(0, state.dragDepth - 1);
+  if (!state.dragDepth) $("#dropOverlay").classList.add("hidden");
+}
+
+function handleDrop(event) {
+  if (!hasDraggedFiles(event)) return;
+  event.preventDefault();
+  state.dragDepth = 0;
+  $("#dropOverlay").classList.add("hidden");
+  showView("creative");
+  uploadPhotos(event.dataTransfer.files);
+}
+
+function hasDraggedFiles(event) {
+  return [...(event.dataTransfer?.types || [])].includes("Files");
 }
 
 function renderAttachmentTray() {
@@ -509,6 +601,7 @@ function statusPill(status) { return `<span class="status-pill ${status}">${stat
 function formatDate(value) { return value ? new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value)) : "Not scheduled"; }
 function formatShortDate(value) { return value ? new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(value)) : ""; }
 function formatTime(value) { return value ? new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date(value)) : ""; }
+function formatBytes(value) { const bytes = Number(value || 0); if (!bytes) return "0 B"; const units = ["B", "KB", "MB", "GB"]; const index = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024))); return `${(bytes / (1024 ** index)).toFixed(index ? 1 : 0)} ${units[index]}`; }
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char])); }
 function draftStats(draft) {
   const scenes = flattenDraftScenes(draft);

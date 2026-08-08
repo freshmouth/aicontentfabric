@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from dataclasses import replace
@@ -18,6 +19,7 @@ from factory_dashboard.app.store import LocalJsonStore
 from tools.account_autopilot import (
     AccountAutopilotError,
     build_manual_execution_config,
+    configure_cloud_route,
     derive_visual_hook_text,
     first_frame_passed,
     load_generation_request,
@@ -53,6 +55,27 @@ class FakeGitHub:
 
     def find_run(self, request_id):
         return None
+
+
+class FakeVideoStorage:
+    def metadata(self, uri):
+        return {"size_bytes": 8, "md5_hash": "test", "updated": "2026-08-07T12:00:00+00:00"}
+
+    def byte_range(self, uri, range_header):
+        payload = b"video123"
+        if range_header == "bytes=0-3":
+            return iter([payload[:4]]), {
+                "status_code": 206,
+                "content_type": "video/mp4",
+                "content_length": 4,
+                "content_range": "bytes 0-3/8",
+            }
+        return iter([payload]), {
+            "status_code": 200,
+            "content_type": "video/mp4",
+            "content_length": len(payload),
+            "content_range": None,
+        }
 
 
 class DashboardTests(unittest.TestCase):
@@ -258,6 +281,101 @@ class DashboardTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 409)
         self.assertIn("different account", response.json()["detail"])
+
+    def test_persistent_session_cookie_authenticates_without_browser_token_storage(self):
+        original_settings = main.settings
+        main.settings = replace(main.settings, admin_token="test-dashboard-secret", session_days=90)
+        try:
+            anonymous = self.client.get("/api/bootstrap?account_id=sal_celtica")
+            self.assertEqual(anonymous.status_code, 401)
+            login = self.client.post(
+                "/api/auth/session",
+                json={"token": "test-dashboard-secret", "remember_device": True},
+            )
+            self.assertEqual(login.status_code, 200)
+            self.assertIn(main.settings.session_cookie_name, self.client.cookies)
+            authenticated = self.client.get("/api/bootstrap?account_id=sal_celtica")
+            self.assertEqual(authenticated.status_code, 200)
+        finally:
+            main.settings = original_settings
+
+    def test_cloud_route_is_account_scoped(self):
+        response = self.client.patch(
+            "/api/accounts/sal_celtica/cloud-route",
+            json={
+                "generation_project_id": "client-generation-123",
+                "generation_service_account": "video-worker@client-generation-123.iam.gserviceaccount.com",
+                "generation_location": "global",
+                "staging_gcs_uri_prefix": "gs://client-staging/accounts/sal_celtica/temp",
+                "master_gcs_uri_prefix": "gs://factory-master/accounts/sal_celtica/archive",
+                "cleanup_staging": True,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["cloud_route"]["generation_project_id"], "client-generation-123")
+        rejected = self.client.patch(
+            "/api/accounts/sal_celtica/cloud-route",
+            json={
+                "generation_project_id": "client-generation-123",
+                "generation_service_account": "video-worker@client-generation-123.iam.gserviceaccount.com",
+                "generation_location": "global",
+                "staging_gcs_uri_prefix": "gs://client-staging/accounts/hyperdash/temp",
+                "master_gcs_uri_prefix": "gs://factory-master/accounts/sal_celtica/archive",
+                "cleanup_staging": True,
+            },
+        )
+        self.assertNotEqual(rejected.status_code, 200)
+
+    def test_archived_video_supports_authenticated_byte_ranges(self):
+        main.video_storage = FakeVideoStorage()
+        now = "2026-08-07T12:00:00+00:00"
+        self.store.put(
+            "jobs",
+            "job_preview",
+            {
+                "id": "job_preview",
+                "account_id": "sal_celtica",
+                "draft_id": "draft_preview",
+                "concept_id": "preview",
+                "status": "succeeded",
+                "output_gcs_uri": "gs://factory-master/accounts/sal_celtica/job_preview.mp4",
+                "created_at": now,
+                "updated_at": now,
+            },
+        )
+        response = self.client.get("/api/jobs/job_preview/video", headers={"Range": "bytes=0-3"})
+        self.assertEqual(response.status_code, 206)
+        self.assertEqual(response.content, b"vide")
+        self.assertEqual(response.headers["content-range"], "bytes 0-3/8")
+
+    def test_worker_applies_account_generation_route_without_keys(self):
+        source = {"account_id": "sal_celtica", "provider": {}}
+        config = {}
+        route = configure_cloud_route(
+            account_id="sal_celtica",
+            generation_request={
+                "cloud_route": {
+                    "account_id": "sal_celtica",
+                    "generation_project_id": "client-generation-123",
+                    "generation_service_account": "video-worker@client-generation-123.iam.gserviceaccount.com",
+                    "generation_location": "us-central1",
+                    "staging_gcs_uri_prefix": "gs://client-staging/accounts/sal_celtica/temp",
+                    "master_output_gcs_uri": "gs://factory-master/accounts/sal_celtica/history/job/final.mp4",
+                    "result_gcs_uri": "gs://factory-master/accounts/sal_celtica/history/job/result.json",
+                    "cleanup_staging": True,
+                }
+            },
+            source_config=source,
+            config=config,
+            run_id="dashboard_job_preview",
+        )
+        self.assertEqual(source["google_omni_flash"]["project_id"], "client-generation-123")
+        self.assertIn("dashboard_job_preview", route["job_staging_gcs_uri_prefix"])
+        self.assertEqual(
+            os.environ.get("GOOGLE_IMPERSONATE_SERVICE_ACCOUNT"),
+            "video-worker@client-generation-123.iam.gserviceaccount.com",
+        )
+        os.environ.pop("GOOGLE_IMPERSONATE_SERVICE_ACCOUNT", None)
 
     def test_manual_account_drafts_and_dispatches_without_autopilot(self):
         response = self.client.post(

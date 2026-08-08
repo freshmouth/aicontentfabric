@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hmac
 import re
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime
@@ -8,14 +9,16 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import Settings
 from .models import (
     AccountScheduleUpdate,
+    AuthSessionRequest,
     ChatRequest,
+    CloudRouteUpdate,
     DraftRecord,
     DraftUpdate,
     GenerateRequest,
@@ -25,9 +28,11 @@ from .models import (
 )
 from .services.accounts import AccountCatalog, AccountCatalogError
 from .services.attachments import AttachmentStorage, AttachmentStorageError, MAX_IMAGE_BYTES
+from .services.auth_sessions import issue_session, valid_session
 from .services.github_actions import GitHubActions, GitHubActionsError
 from .services.openai_creative import CreativeServiceError, OpenAICreativeService, validate_source_config
 from .services.creative_contract import CreativeContractError, compile_source_config
+from .services.video_storage import VideoStorage, VideoStorageError
 from .store import build_store
 
 
@@ -37,6 +42,7 @@ catalog = AccountCatalog(settings, store)
 creative = OpenAICreativeService(settings.openai_api_key, settings.openai_model)
 github = GitHubActions(settings)
 attachment_storage = AttachmentStorage(settings)
+video_storage = VideoStorage(settings)
 chat_executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="creative-agent")
 
 app = FastAPI(title="AI Content Factory Control Plane", version="0.1.0")
@@ -44,10 +50,16 @@ static_dir = Path(__file__).resolve().parent / "static"
 app.mount("/assets", StaticFiles(directory=static_dir), name="assets")
 
 
-def require_admin(authorization: str | None = Header(default=None)) -> None:
+def require_admin(request: Request, authorization: str | None = Header(default=None)) -> None:
     if not settings.admin_token:
         return
-    if authorization != f"Bearer {settings.admin_token}":
+    bearer_valid = bool(
+        authorization
+        and authorization.startswith("Bearer ")
+        and hmac.compare_digest(authorization.removeprefix("Bearer "), settings.admin_token)
+    )
+    cookie_valid = valid_session(request.cookies.get(settings.session_cookie_name, ""), settings.admin_token)
+    if not bearer_valid and not cookie_valid:
         raise HTTPException(status_code=401, detail="Invalid dashboard token.")
 
 
@@ -71,6 +83,11 @@ async def attachment_error(_: Request, exc: AttachmentStorageError):
     return json_error(400, str(exc))
 
 
+@app.exception_handler(VideoStorageError)
+async def video_storage_error(_: Request, exc: VideoStorageError):
+    return json_error(416, str(exc))
+
+
 def json_error(status_code: int, detail: str):
     from fastapi.responses import JSONResponse
 
@@ -88,6 +105,29 @@ def health() -> dict[str, Any]:
     }
 
 
+@app.post("/api/auth/session")
+def create_auth_session(payload: AuthSessionRequest, request: Request, response: Response) -> dict[str, Any]:
+    if settings.admin_token and not hmac.compare_digest(payload.token, settings.admin_token):
+        raise HTTPException(status_code=401, detail="Invalid dashboard token.")
+    lifetime = settings.session_days * 86400 if payload.remember_device else 12 * 3600
+    response.set_cookie(
+        key=settings.session_cookie_name,
+        value=issue_session(settings.admin_token or "local-dashboard", lifetime_seconds=lifetime),
+        max_age=lifetime if payload.remember_device else None,
+        httponly=True,
+        secure=(request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"),
+        samesite="strict",
+        path="/",
+    )
+    return {"status": "authenticated", "remember_device": payload.remember_device}
+
+
+@app.post("/api/auth/logout")
+def logout(response: Response) -> dict[str, str]:
+    response.delete_cookie(settings.session_cookie_name, path="/")
+    return {"status": "logged_out"}
+
+
 @app.get("/api/bootstrap", dependencies=[Depends(require_admin)])
 def bootstrap(account_id: str | None = None) -> dict[str, Any]:
     accounts = catalog.list_accounts()
@@ -96,7 +136,7 @@ def bootstrap(account_id: str | None = None) -> dict[str, Any]:
         "accounts": accounts,
         "selected_account_id": selected,
         "drafts": store.list("drafts", account_id=selected)[:30] if selected else [],
-        "jobs": refreshed_jobs(selected)[:40] if selected else [],
+        "jobs": refreshed_jobs(selected) if selected else [],
         "server_time": utc_now(),
     }
 
@@ -114,6 +154,11 @@ def get_account(account_id: str) -> dict[str, Any]:
 @app.patch("/api/accounts/{account_id}/schedule", dependencies=[Depends(require_admin)])
 def update_schedule(account_id: str, update: AccountScheduleUpdate) -> dict[str, Any]:
     return catalog.update_schedule(account_id, update.model_dump(exclude_none=True))
+
+
+@app.patch("/api/accounts/{account_id}/cloud-route", dependencies=[Depends(require_admin)])
+def update_cloud_route(account_id: str, update: CloudRouteUpdate) -> dict[str, Any]:
+    return catalog.update_cloud_route(account_id, update.model_dump())
 
 
 @app.post("/api/accounts/{account_id}/attachments", dependencies=[Depends(require_admin)])
@@ -200,8 +245,8 @@ def process_chat(request: ChatRequest) -> dict[str, Any]:
             + request.attachment_ids
         )
     )
-    if len(attachment_ids) > 6:
-        raise HTTPException(status_code=400, detail="A draft can use at most 6 reference photos.")
+    if len(attachment_ids) > 20:
+        raise HTTPException(status_code=400, detail="A draft can use at most 20 reference photos.")
     attachment_records = resolve_attachments(request.account_id, attachment_ids)
     image_inputs = [
         {
@@ -449,6 +494,15 @@ def queue_draft(draft: dict[str, Any], request: GenerateRequest, *, job_id: str 
             detail=f"Account {account_id} has no account-scoped publish_config.json for Metricool.",
         )
     job_id = job_id or new_id("job")
+    cloud_route = dict(account.get("cloud_route") or {})
+    master_prefix = str(cloud_route.get("master_gcs_uri_prefix") or "").rstrip("/")
+    if not master_prefix.startswith("gs://"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Account {account_id} needs an account-scoped master GCS prefix before cloud generation.",
+        )
+    output_gcs_uri = f"{master_prefix}/generation-history/{job_id}/final_video.mp4"
+    result_gcs_uri = f"{master_prefix}/generation-history/{job_id}/result.json"
     now = utc_now()
     try:
         compiled_spec, preflight = compile_source_config(draft["creative_spec"])
@@ -471,6 +525,12 @@ def queue_draft(draft: dict[str, Any], request: GenerateRequest, *, job_id: str 
         "caption": draft.get("caption") or "",
         "source_config": compiled_spec,
         "creative_preflight": preflight,
+        "cloud_route": {
+            **cloud_route,
+            "account_id": account_id,
+            "master_output_gcs_uri": output_gcs_uri,
+            "result_gcs_uri": result_gcs_uri,
+        },
         "reference_attachments": [
             {
                 "id": item["id"],
@@ -491,6 +551,8 @@ def queue_draft(draft: dict[str, Any], request: GenerateRequest, *, job_id: str 
         publish_at=request.publish_at,
         dry_run=request.dry_run,
         skip_publish=request.skip_publish,
+        output_gcs_uri=output_gcs_uri,
+        result_gcs_uri=result_gcs_uri,
         created_at=now,
         updated_at=now,
     ).model_dump()
@@ -515,16 +577,52 @@ def queue_draft(draft: dict[str, Any], request: GenerateRequest, *, job_id: str 
 
 def refreshed_jobs(account_id: str | None) -> list[dict[str, Any]]:
     jobs = store.list("jobs", account_id=account_id)
-    if not settings.github_token:
-        return jobs
-    for job in jobs[:20]:
-        if job.get("status") in {"succeeded", "failed", "cancelled"}:
-            continue
-        update = github.find_run(job["id"])
-        if update:
-            job.update(update)
+    for job in jobs[:100]:
+        changed = False
+        if settings.github_token and job.get("status") not in {"succeeded", "failed", "cancelled"}:
+            update = github.find_run(job["id"])
+            if update:
+                job.update(update)
+                changed = True
+        if job.get("status") == "succeeded" and job.get("output_gcs_uri") and not job.get("output_size_bytes"):
+            try:
+                metadata = video_storage.metadata(str(job["output_gcs_uri"]))
+            except Exception:
+                metadata = None
+            if metadata:
+                job["output_size_bytes"] = metadata["size_bytes"]
+                job["output_md5"] = metadata["md5_hash"]
+                job["completed_at"] = metadata["updated"] or job.get("updated_at")
+                changed = True
+        if changed:
+            job["updated_at"] = utc_now()
             store.put("jobs", job["id"], job)
     return jobs
+
+
+@app.get("/api/jobs/{job_id}/video", dependencies=[Depends(require_admin)])
+def preview_video(job_id: str, request: Request) -> StreamingResponse:
+    job = store.get("jobs", job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Generation job not found.")
+    uri = str(job.get("output_gcs_uri") or "")
+    if not uri.startswith("gs://"):
+        raise HTTPException(status_code=404, detail="This generation does not have an archived video.")
+    stream, info = video_storage.byte_range(uri, request.headers.get("range"))
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(info["content_length"]),
+        "Cache-Control": "private, max-age=300",
+        "Content-Disposition": f'inline; filename="{job_id}.mp4"',
+    }
+    if info["content_range"]:
+        headers["Content-Range"] = info["content_range"]
+    return StreamingResponse(
+        stream,
+        status_code=info["status_code"],
+        media_type=info["content_type"],
+        headers=headers,
+    )
 
 
 @app.get("/")

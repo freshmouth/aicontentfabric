@@ -27,6 +27,8 @@ class Settings:
     github_repo: str
     github_workflow: str
     github_branch: str
+    session_cookie_name: str
+    session_days: int
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -51,4 +53,6 @@ class Settings:
             github_repo=(os.environ.get("GITHUB_REPO") or "aicontentfabric").strip(),
             github_workflow=(os.environ.get("GITHUB_WORKFLOW") or "account-autopilot.yml").strip(),
             github_branch=(os.environ.get("GITHUB_BRANCH") or "main").strip(),
+            session_cookie_name=(os.environ.get("DASHBOARD_SESSION_COOKIE") or "factory_session").strip(),
+            session_days=max(1, int(os.environ.get("DASHBOARD_SESSION_DAYS") or "90")),
         )

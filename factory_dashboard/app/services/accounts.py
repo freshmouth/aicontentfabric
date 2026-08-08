@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -50,6 +50,7 @@ class AccountCatalog:
             account_dir / "publish_config.json"
         ).exists()
         publish_enabled = bool(override.get("publish_enabled", autopilot.get("publish_enabled", True)))
+        cloud_route = self._cloud_route(account_id, autopilot, override)
         status = (
             "active"
             if effective_enabled and autopilot_ready
@@ -85,6 +86,13 @@ class AccountCatalog:
                 }
                 for item in concepts
             ],
+            "cloud_route": cloud_route,
+            "cloud_route_ready": bool(
+                cloud_route.get("generation_project_id")
+                and cloud_route.get("generation_service_account")
+                and cloud_route.get("staging_gcs_uri_prefix")
+                and cloud_route.get("master_gcs_uri_prefix")
+            ),
             "override": override,
         }
 
@@ -97,7 +105,33 @@ class AccountCatalog:
         current = self.store.get("account_overrides", account_id) or {"account_id": account_id}
         current.update({key: value for key, value in values.items() if value is not None})
         current["account_id"] = account_id
-        current["updated_at"] = datetime.utcnow().isoformat() + "Z"
+        current["updated_at"] = datetime.now(timezone.utc).isoformat()
+        self.store.put("account_overrides", account_id, current)
+        return self.get_account(account_id)
+
+    def update_cloud_route(self, account_id: str, values: dict[str, Any]) -> dict[str, Any]:
+        self.get_account(account_id)
+        staging = str(values.get("staging_gcs_uri_prefix") or "").rstrip("/")
+        master = str(values.get("master_gcs_uri_prefix") or "").rstrip("/")
+        account_marker = f"/accounts/{account_id}"
+        if account_marker not in staging:
+            raise AccountCatalogError(
+                f"Staging storage must contain {account_marker} so jobs cannot cross account boundaries."
+            )
+        if account_marker not in master:
+            raise AccountCatalogError(
+                f"Master storage must contain {account_marker} so history cannot cross account boundaries."
+            )
+        if staging == master or staging.startswith(f"{master}/") or master.startswith(f"{staging}/"):
+            raise AccountCatalogError("Staging and master storage prefixes must be separate.")
+        current = self.store.get("account_overrides", account_id) or {"account_id": account_id}
+        current["cloud_route"] = {
+            **values,
+            "staging_gcs_uri_prefix": staging,
+            "master_gcs_uri_prefix": master,
+        }
+        current["account_id"] = account_id
+        current["updated_at"] = datetime.now(timezone.utc).isoformat()
         self.store.put("account_overrides", account_id, current)
         return self.get_account(account_id)
 
@@ -208,6 +242,29 @@ class AccountCatalog:
                 continue
             valid.append(dict(item))
         return valid
+
+    def _cloud_route(
+        self,
+        account_id: str,
+        autopilot: dict[str, Any],
+        override: dict[str, Any],
+    ) -> dict[str, Any]:
+        configured = dict(autopilot.get("cloud_route") or {})
+        configured.update(dict(override.get("cloud_route") or {}))
+        master_prefix = str(
+            configured.get("master_gcs_uri_prefix")
+            or autopilot.get("output_gcs_uri_prefix")
+            or f"gs://ai-content-factory-501821-omni-outputs/accounts/{account_id}/manual-dashboard"
+        ).rstrip("/")
+        return {
+            "generation_project_id": str(configured.get("generation_project_id") or ""),
+            "generation_service_account": str(configured.get("generation_service_account") or ""),
+            "generation_location": str(configured.get("generation_location") or "global"),
+            "staging_gcs_uri_prefix": str(configured.get("staging_gcs_uri_prefix") or "").rstrip("/"),
+            "master_gcs_uri_prefix": master_prefix,
+            "cleanup_staging": bool(configured.get("cleanup_staging", True)),
+            "account_id": account_id,
+        }
 
     @staticmethod
     def _manual_source(account: dict[str, Any]) -> dict[str, Any]:

@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/app.css">
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
-  <script src="/assets/app.js?v=20260804.4" defer></script>
+  <script src="/assets/app.js?v=20260807.1" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -144,6 +144,10 @@
             <table><thead><tr><th>Job</th><th>Concept</th><th>Status</th><th>Mode</th><th>Publish at</th><th>Updated</th><th></th></tr></thead><tbody id="allJobs"></tbody></table>
           </div>
         </section>
+        <section class="video-history-section">
+          <div class="section-header compact"><div><h2>Video history</h2><p>Archived account videos, ready to preview without leaving the factory.</p></div></div>
+          <div id="videoHistory" class="video-history"></div>
+        </section>
       </section>
 
       <section class="view" id="view-schedule">
@@ -156,6 +160,16 @@
             <label>Timezone<input type="text" id="scheduleTimezone"></label>
             <button class="button primary" id="saveSchedule"><i data-lucide="calendar-check"></i><span>Save schedule</span></button>
           </div>
+          <div class="schedule-form cloud-route-form">
+            <div class="field-group-heading"><span class="eyebrow">Google Cloud route</span><h3>Generation account</h3></div>
+            <label>Generation project<input type="text" id="generationProject" placeholder="client-generation-project"></label>
+            <label>Impersonated service account<input type="email" id="generationServiceAccount" placeholder="video-worker@project.iam.gserviceaccount.com"></label>
+            <label>Generation location<input type="text" id="generationLocation" value="global"></label>
+            <label>Temporary generation prefix<input type="text" id="stagingPrefix" placeholder="gs://client-staging/accounts/account_id"></label>
+            <label>Master archive prefix<input type="text" id="masterPrefix" placeholder="gs://master-bucket/accounts/account_id"></label>
+            <label class="toggle-row"><span><strong>Delete temporary outputs</strong><small>Only after archive verification</small></span><input type="checkbox" id="cleanupStaging" checked></label>
+            <button class="button secondary" id="saveCloudRoute"><i data-lucide="cloud-cog"></i><span>Save cloud route</span></button>
+          </div>
           <div class="schedule-note">
             <i data-lucide="shield-check"></i>
             <div><strong>Account isolation enforced</strong><p id="scheduleRequirement">Creative assets, credentials, drafts, queues, and Metricool destinations remain scoped to the selected account.</p></div>
@@ -166,10 +180,12 @@
   </div>
 
   <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+  <div class="drop-overlay hidden" id="dropOverlay"><div><i data-lucide="images"></i><strong>Drop reference photos</strong><span>They stay inside the selected account.</span></div></div>
   <div class="auth-screen hidden" id="authScreen">
     <form id="authForm" class="auth-dialog">
       <div class="brand-mark">AF</div><h2>Open the factory</h2><p>Enter the dashboard access token.</p>
       <input type="password" id="tokenInput" autocomplete="current-password" placeholder="Access token">
+      <label class="remember-device"><input type="checkbox" id="rememberDevice" checked><span>Keep this computer signed in</span></label>
       <button class="button primary full-width" type="submit"><i data-lucide="log-in"></i><span>Continue</span></button>
     </form>
   </div>

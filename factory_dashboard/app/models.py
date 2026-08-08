@@ -19,7 +19,12 @@ class ChatRequest(BaseModel):
     account_id: str
     message: str = Field(min_length=3, max_length=12000)
     draft_id: str | None = None
-    attachment_ids: list[str] = Field(default_factory=list, max_length=6)
+    attachment_ids: list[str] = Field(default_factory=list, max_length=20)
+
+
+class AuthSessionRequest(BaseModel):
+    token: str = Field(min_length=1, max_length=4096)
+    remember_device: bool = True
 
 
 class DraftUpdate(BaseModel):
@@ -51,6 +56,19 @@ class AccountScheduleUpdate(BaseModel):
     timezone: str | None = Field(default=None, min_length=3, max_length=80)
 
 
+class CloudRouteUpdate(BaseModel):
+    generation_project_id: str = Field(min_length=6, max_length=128, pattern=r"^[a-z][a-z0-9-]{4,61}[a-z0-9]$")
+    generation_service_account: str = Field(
+        min_length=6,
+        max_length=254,
+        pattern=r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.iam\.gserviceaccount\.com$",
+    )
+    generation_location: str = Field(default="global", min_length=2, max_length=64)
+    staging_gcs_uri_prefix: str = Field(min_length=8, max_length=1024, pattern=r"^gs://[^/]+/.+")
+    master_gcs_uri_prefix: str = Field(min_length=8, max_length=1024, pattern=r"^gs://[^/]+/.+")
+    cleanup_staging: bool = True
+
+
 class DraftRecord(BaseModel):
     id: str
     account_id: str
@@ -78,5 +96,10 @@ class JobRecord(BaseModel):
     github_run_id: int | None = None
     github_run_url: str | None = None
     error_code: str | None = None
+    output_gcs_uri: str | None = None
+    result_gcs_uri: str | None = None
+    output_size_bytes: int | None = None
+    output_md5: str | None = None
+    completed_at: str | None = None
     created_at: str
     updated_at: str
