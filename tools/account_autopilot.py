@@ -846,7 +846,9 @@ def evaluate_first_frame(
 ) -> dict[str, Any]:
     import requests
 
-    image_data = base64.b64encode(image_path.read_bytes()).decode("ascii")
+    image_bytes = image_path.read_bytes()
+    image_data = base64.b64encode(image_bytes).decode("ascii")
+    candidate_width, candidate_height = _png_dimensions(image_bytes)
     content: list[dict[str, Any]] = [
         {"type": "input_text", "text": qa_prompt},
         {"type": "input_image", "image_url": f"data:image/png;base64,{image_data}", "detail": "high"},
@@ -897,7 +899,19 @@ def evaluate_first_frame(
     if not isinstance(parsed, dict):
         raise AccountAutopilotError("First-frame QA response must be an object.")
     parsed["model"] = model
+    parsed["candidate_width"] = int(candidate_width)
+    parsed["candidate_height"] = int(candidate_height)
+    parsed["canonical_reference_count"] = len(list(reference_images or []))
     return parsed
+
+
+def _png_dimensions(image_bytes: bytes) -> tuple[int, int]:
+    if len(image_bytes) >= 24 and image_bytes[:8] == b"\x89PNG\r\n\x1a\n":
+        return (
+            int.from_bytes(image_bytes[16:20], "big"),
+            int.from_bytes(image_bytes[20:24], "big"),
+        )
+    return 0, 0
 
 
 def first_frame_passed(result: dict[str, Any], *, image_prompt: str = "") -> bool:
@@ -960,6 +974,21 @@ def _selfie_capture_device_false_positive(result: dict[str, Any], image_prompt: 
             "not holding",
             "not held",
             "missing physically plausible phone in hand",
+            "no visible phone",
+        )
+    )
+    width = int(_qa_score(result.get("candidate_width")))
+    height = int(_qa_score(result.get("candidate_height")))
+    verified_vertical_candidate = width > 0 and height > width
+    canonical_reference_attached = int(_qa_score(result.get("canonical_reference_count"))) > 0
+    contradicted_selfie_claim = verified_vertical_candidate and canonical_reference_attached and any(
+        marker in issues
+        for marker in (
+            "horizontal landscape",
+            "aspect ratio is horizontal",
+            "filming a selfie",
+            "indicate filming a selfie",
+            "no direct eye contact",
         )
     )
     real_physical_error = any(
@@ -967,15 +996,21 @@ def _selfie_capture_device_false_positive(result: dict[str, Any], image_prompt: 
         for marker in (
             "extra hand",
             "extra finger",
+            "extra limb",
+            "duplicate person",
             "deformed",
             "distorted hand",
             "floating",
             "detached",
             "wrong face",
+            "wrong person",
             "identity mismatch",
+            "waxy",
         )
     )
-    return missing_capture_phone and not real_physical_error
+    return (missing_capture_phone or contradicted_selfie_claim) and not real_physical_error and not bool(
+        result.get("forbidden_elements")
+    )
 
 
 def _qa_score(value: Any) -> float:

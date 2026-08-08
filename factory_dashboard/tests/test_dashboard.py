@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 import tempfile
@@ -631,12 +632,41 @@ class DashboardTests(unittest.TestCase):
             first_frame_passed(false_negative, image_prompt="Woman holding a phone in her hand for the camera.")
         )
 
+    def test_first_frame_gate_uses_real_dimensions_over_false_landscape_claim(self):
+        false_negative = {
+            "status": "FAIL",
+            "product_placement": 1,
+            "hand_realism": 10,
+            "face_quality": 9,
+            "background_realism": 9,
+            "ugc_authenticity": 8,
+            "prompt_compliance": 1,
+            "forbidden_elements": [],
+            "candidate_width": 720,
+            "candidate_height": 1280,
+            "canonical_reference_count": 1,
+            "issues": [
+                "The image aspect ratio is horizontal landscape, not vertical 9:16.",
+                "No visible phone or hand holding the phone in a plausible selfie filming manner.",
+            ],
+        }
+        self.assertTrue(first_frame_passed(false_negative, image_prompt="Close vertical iPhone selfie."))
+        self.assertFalse(
+            first_frame_passed(
+                {**false_negative, "issues": ["An extra hand is visible."]},
+                image_prompt="Close vertical iPhone selfie.",
+            )
+        )
+
     @patch("requests.post")
     def test_first_frame_qa_receives_canonical_character_reference(self, post):
         candidate = Path(self.temp.name) / "candidate.png"
         reference = Path(self.temp.name) / "reference.png"
-        candidate.write_bytes(b"candidate")
-        reference.write_bytes(b"reference")
+        png = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        )
+        candidate.write_bytes(png)
+        reference.write_bytes(png)
         post.return_value = SimpleNamespace(
             status_code=200,
             json=lambda: {"output_text": json.dumps({"status": "PASS", "issues": []})},
@@ -652,8 +682,8 @@ class DashboardTests(unittest.TestCase):
 
         content = post.call_args.kwargs["json"]["input"][0]["content"]
         self.assertEqual([item["type"] for item in content], ["input_text", "input_image", "input_image"])
-        self.assertIn("Y2FuZGlkYXRl", content[1]["image_url"])
-        self.assertIn("cmVmZXJlbmNl", content[2]["image_url"])
+        self.assertTrue(content[1]["image_url"].startswith("data:image/png;base64,"))
+        self.assertTrue(content[2]["image_url"].startswith("data:image/png;base64,"))
 
     def test_local_reference_loader_combines_account_scoped_directories(self):
         account_dir = Path(self.temp.name) / "account"
