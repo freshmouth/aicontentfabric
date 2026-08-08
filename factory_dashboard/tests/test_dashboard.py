@@ -348,6 +348,32 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(response.content, b"vide")
         self.assertEqual(response.headers["content-range"], "bytes 0-3/8")
 
+    def test_failed_job_recovers_when_verified_archive_exists(self):
+        main.video_storage = FakeVideoStorage()
+        now = "2026-08-07T12:00:00+00:00"
+        self.store.put(
+            "jobs",
+            "job_recovered",
+            {
+                "id": "job_recovered",
+                "account_id": "presell",
+                "draft_id": "draft_recovered",
+                "concept_id": "recovered",
+                "status": "failed",
+                "error_code": "failure",
+                "output_gcs_uri": "gs://factory-master/accounts/presell/job_recovered.mp4",
+                "created_at": now,
+                "updated_at": now,
+            },
+        )
+        response = self.client.get("/api/jobs?account_id=presell")
+        self.assertEqual(response.status_code, 200)
+        recovered = response.json()[0]
+        self.assertEqual(recovered["status"], "succeeded")
+        self.assertIsNone(recovered["error_code"])
+        self.assertEqual(recovered["output_size_bytes"], 8)
+        self.assertEqual(recovered["output_md5"], "test")
+
     def test_worker_applies_account_generation_route_without_keys(self):
         source = {"account_id": "sal_celtica", "provider": {}}
         config = {}

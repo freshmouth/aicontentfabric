@@ -579,17 +579,23 @@ def refreshed_jobs(account_id: str | None) -> list[dict[str, Any]]:
     jobs = store.list("jobs", account_id=account_id)
     for job in jobs[:100]:
         changed = False
-        if settings.github_token and job.get("status") not in {"succeeded", "failed", "cancelled"}:
+        terminal_without_video = job.get("status") in {"failed", "cancelled"} and not job.get("output_size_bytes")
+        if settings.github_token and (
+            job.get("status") not in {"succeeded", "failed", "cancelled"} or terminal_without_video
+        ):
             update = github.find_run(job["id"])
             if update:
                 job.update(update)
                 changed = True
-        if job.get("status") == "succeeded" and job.get("output_gcs_uri") and not job.get("output_size_bytes"):
+        can_reconcile_from_archive = job.get("status") in {"succeeded", "failed", "cancelled"}
+        if can_reconcile_from_archive and job.get("output_gcs_uri") and not job.get("output_size_bytes"):
             try:
                 metadata = video_storage.metadata(str(job["output_gcs_uri"]))
             except Exception:
                 metadata = None
             if metadata:
+                job["status"] = "succeeded"
+                job["error_code"] = None
                 job["output_size_bytes"] = metadata["size_bytes"]
                 job["output_md5"] = metadata["md5_hash"]
                 job["completed_at"] = metadata["updated"] or job.get("updated_at")
