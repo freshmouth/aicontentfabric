@@ -40,6 +40,8 @@ def main(argv: list[str] | None = None) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     try:
+        if args.mode in {"dry-run", "generate-library", "all"}:
+            validate_generation_config(config, out_dir, require_images=args.mode != "dry-run")
         if args.mode == "dry-run":
             dry_run(config, config_path, out_dir)
         elif args.mode == "generate-library":
@@ -61,6 +63,43 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Google Omni stack output: {out_dir}")
     return 0
+
+
+def validate_generation_config(config: dict[str, Any], out_dir: Path, *, require_images: bool) -> None:
+    """Validate every paid request before the first provider call."""
+    records: list[dict[str, Any]] = []
+    errors: list[str] = []
+    for component in all_clip_specs(config):
+        for segment_index, segment in enumerate(component_segments(component), start=1):
+            sid = segment_id(component, segment, segment_index)
+            try:
+                duration = segment_duration(config, segment)
+                prompt = build_clip_prompt(config, component, segment)
+            except Exception as exc:
+                errors.append(f"{sid}: {exc}")
+                continue
+            references = inherited_references(component, segment, "reference_images")
+            if require_images and not references:
+                errors.append(f"{sid}: image-to-video requires a reference image.")
+            records.append(
+                {
+                    "scene_id": sid,
+                    "role": clip_role(component),
+                    "duration_seconds": duration,
+                    "prompt_length": len(prompt),
+                    "reference_images": references,
+                }
+            )
+    report = {
+        "status": "failed" if errors else "passed",
+        "scene_count": len(records),
+        "require_images": require_images,
+        "errors": errors,
+        "scenes": records,
+    }
+    write_json(out_dir / "provider_preflight.json", report)
+    if errors:
+        raise OmniStackError("Provider preflight failed: " + " ".join(errors))
 
 
 def build_parser() -> argparse.ArgumentParser:

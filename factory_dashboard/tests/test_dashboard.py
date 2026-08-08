@@ -13,10 +13,13 @@ from factory_dashboard.app import main
 from factory_dashboard.app.services.accounts import AccountCatalog
 from factory_dashboard.app.services.attachments import AttachmentStorage
 from factory_dashboard.app.services.openai_creative import OpenAICreativeService, validate_source_config
+from factory_dashboard.app.services.creative_contract import CreativeContractError, compile_source_config
 from factory_dashboard.app.store import LocalJsonStore
 from tools.account_autopilot import (
     AccountAutopilotError,
     build_manual_execution_config,
+    derive_visual_hook_text,
+    first_frame_passed,
     load_generation_request,
     run_autopilot,
 )
@@ -326,14 +329,27 @@ class DashboardTests(unittest.TestCase):
             "concept_id": "scene_overflow",
             "account_id": "sal_celtica",
             "master_prompt": "Keep the account identity consistent.",
-            "hooks": [{"id": "h1"}, {"id": "h2"}],
+            "hooks": [
+                {"id": "h1", "script": "First hook.", "prompt": "First hook visual."},
+                {"id": "h2", "script": "Second hook.", "prompt": "Second hook visual."},
+            ],
             "mains": [
                 {
                     "id": "main",
-                    "segments": [{"id": f"scene_{index:02d}"} for index in range(1, 16)],
+                    "segments": [
+                        {
+                            "id": f"scene_{index:02d}",
+                            "script": f"Main line {index}.",
+                            "prompt": f"Main visual {index}.",
+                        }
+                        for index in range(1, 16)
+                    ],
                 }
             ],
-            "ctas": [{"id": "c1"}, {"id": "c2"}],
+            "ctas": [
+                {"id": "c1", "script": "First CTA.", "prompt": "First CTA visual."},
+                {"id": "c2", "script": "Second CTA.", "prompt": "Second CTA visual."},
+            ],
         }
 
         validate_source_config(spec)
@@ -341,6 +357,89 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(len(spec["hooks"]), 2)
         self.assertEqual(len(spec["ctas"]), 2)
         self.assertEqual(len(spec["mains"][0]["segments"]), 15)
+
+    def test_creative_preflight_expands_two_second_scene_before_generation(self):
+        spec = {
+            "concept_id": "duration_guard",
+            "account_id": "claire",
+            "master_prompt": "Keep Claire consistent.",
+            "hooks": [
+                {
+                    "id": "hook",
+                    "duration_seconds": 2,
+                    "script": "Stop drinking plain water.",
+                    "prompt": "Claire holds up a glass of water.",
+                }
+            ],
+            "mains": [
+                {
+                    "id": "main",
+                    "segments": [
+                        {
+                            "id": "main_01",
+                            "duration_seconds": 5,
+                            "script": "Here is what most people miss.",
+                            "prompt": "Claire points to the glass.",
+                        }
+                    ],
+                }
+            ],
+            "ctas": [
+                {
+                    "id": "cta",
+                    "duration_seconds": 5,
+                    "script": "Comment WATER for the product.",
+                    "prompt": "Claire gestures toward the comments.",
+                }
+            ],
+        }
+
+        compiled, report = compile_source_config(spec)
+
+        self.assertEqual(compiled["hooks"][0]["duration_seconds"], 3)
+        self.assertEqual(report["status"], "passed")
+        self.assertEqual(report["adjusted_scene_count"], 1)
+
+    def test_creative_preflight_rejects_dialogue_that_cannot_finish(self):
+        long_line = " ".join(["word"] * 30)
+        spec = {
+            "concept_id": "too_long",
+            "account_id": "claire",
+            "master_prompt": "Keep Claire consistent.",
+            "hooks": [{"id": "hook", "script": long_line, "prompt": "Hook visual."}],
+            "mains": [{"id": "main", "script": "Short main.", "prompt": "Main visual."}],
+            "ctas": [{"id": "cta", "script": "Short CTA.", "prompt": "CTA visual."}],
+        }
+
+        with self.assertRaisesRegex(CreativeContractError, "Split its dialogue"):
+            compile_source_config(spec)
+
+    def test_visual_hook_prefers_explicit_direct_overlay(self):
+        text = derive_visual_hook_text(
+            {
+                "hooks": [
+                    {
+                        "hook_text": "This is the new Kinect for iPhone",
+                        "script": "A longer ambiguous spoken opening that should not become the overlay.",
+                    }
+                ]
+            }
+        )
+        self.assertEqual(text, "This is the new Kinect for iPhone")
+
+    def test_first_frame_gate_requires_all_scores_and_no_issues(self):
+        passing = {
+            "status": "PASS",
+            "product_placement": 9,
+            "hand_realism": 8,
+            "face_quality": 9,
+            "background_realism": 8,
+            "ugc_authenticity": 9,
+            "issues": [],
+        }
+        self.assertTrue(first_frame_passed(passing))
+        self.assertFalse(first_frame_passed({**passing, "hand_realism": 7}))
+        self.assertFalse(first_frame_passed({**passing, "issues": ["floating object"]}))
 
 
 if __name__ == "__main__":

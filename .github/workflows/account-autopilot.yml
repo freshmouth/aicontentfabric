@@ -201,7 +201,12 @@ jobs:
             accounts/*/runs/*/autopilot_result.json
             accounts/*/runs/*/video_manifest.json
             accounts/*/runs/*/dashboard_source_config.json
+            accounts/*/runs/*/compiled_source_config.json
+            accounts/*/runs/*/creative_preflight.json
+            accounts/*/runs/*/execution_events.json
             accounts/*/runs/*/v3_execution_manifest.json
+            accounts/*/runs/*/first_images/*.qa.json
+            accounts/*/runs/*/first_images/*.prompt.txt
             accounts/*/runs/*/*_omni_config.json
             accounts/*/runs/*/omni_stdout.txt
             accounts/*/runs/*/omni_stderr.txt
@@ -210,7 +215,12 @@ jobs:
             accounts/*/runs/*/publish_ready/*.postprocess.json
             accounts/*/runs/*/publish_ready/*.ffmpeg_log.txt
             accounts/*/runs/*/publish_ready/*.mp4
+            accounts/*/runs/*/publish_finish/*.json
+            accounts/*/runs/*/publish_finish/*.txt
+            accounts/*/runs/*/publish_finish/*.ass
+            accounts/*/runs/*/publish_finish/*.mp4
             accounts/*/runs/*/omni/run_log.json
+            accounts/*/runs/*/omni/provider_preflight.json
             accounts/*/runs/*/omni/google_omni_provider_log.jsonl
             accounts/*/runs/*/omni/library_manifest.json
             accounts/*/runs/*/omni/library/**/*.request.json

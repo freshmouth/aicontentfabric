@@ -27,6 +27,7 @@ from .services.accounts import AccountCatalog, AccountCatalogError
 from .services.attachments import AttachmentStorage, AttachmentStorageError, MAX_IMAGE_BYTES
 from .services.github_actions import GitHubActions, GitHubActionsError
 from .services.openai_creative import CreativeServiceError, OpenAICreativeService, validate_source_config
+from .services.creative_contract import CreativeContractError, compile_source_config
 from .store import build_store
 
 
@@ -326,7 +327,7 @@ def execution_success_message(action: str, job: dict[str, Any]) -> str:
         destination = "Metricool after rendering"
         timing = f" for {job['publish_at']}" if job.get("publish_at") else " at the next immediate publish slot"
         return f"Production job {job['id']} is queued. Google Omni generation and assembly will run in the cloud, then send the finished reel to {destination}{timing}."
-    return f"Production job {job['id']} is queued. Google Omni generation, captions, visual hook, music, and final assembly will run in the cloud without publishing."
+    return f"Production job {job['id']} is queued. Google Omni generation, silence cleanup, captions, visual hook, and final assembly will run in the cloud without publishing."
 
 
 def resolve_attachments(account_id: str, attachment_ids: list[str]) -> list[dict[str, Any]]:
@@ -369,7 +370,10 @@ def update_draft(draft_id: str, update: DraftUpdate) -> dict[str, Any]:
     values = update.model_dump(exclude_none=True)
     if "creative_spec" in values:
         values["creative_spec"]["account_id"] = draft["account_id"]
-        validate_source_config(values["creative_spec"])
+        try:
+            values["creative_spec"], _ = compile_source_config(values["creative_spec"])
+        except CreativeContractError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     draft.update(values)
     draft["version"] = int(draft.get("version") or 0) + 1
     draft["updated_at"] = utc_now()
@@ -446,7 +450,14 @@ def queue_draft(draft: dict[str, Any], request: GenerateRequest, *, job_id: str 
         )
     job_id = job_id or new_id("job")
     now = utc_now()
-    concept_id = str(draft["creative_spec"].get("concept_id") or job_id)
+    try:
+        compiled_spec, preflight = compile_source_config(draft["creative_spec"])
+    except CreativeContractError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    draft["creative_spec"] = compiled_spec
+    draft["updated_at"] = utc_now()
+    store.put("drafts", str(draft["id"]), draft)
+    concept_id = str(compiled_spec.get("concept_id") or job_id)
     attachment_ids = [
         str(item.get("id")) for item in list(draft.get("attachments") or []) if item.get("id")
     ]
@@ -458,7 +469,8 @@ def queue_draft(draft: dict[str, Any], request: GenerateRequest, *, job_id: str 
         "account_id": account_id,
         "concept_id": concept_id,
         "caption": draft.get("caption") or "",
-        "source_config": draft["creative_spec"],
+        "source_config": compiled_spec,
+        "creative_preflight": preflight,
         "reference_attachments": [
             {
                 "id": item["id"],

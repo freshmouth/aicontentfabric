@@ -10,6 +10,8 @@ from typing import Any
 
 import truststore
 
+from .creative_contract import CreativeContractError, compile_source_config
+
 
 class CreativeServiceError(RuntimeError):
     pass
@@ -75,7 +77,12 @@ class OpenAICreativeService:
             raise CreativeServiceError("Creative response did not contain source_config.")
         spec["account_id"] = account_context["account"]["account_id"]
         spec.setdefault("language", template.get("language") or "en")
-        validate_source_config(spec)
+        try:
+            compiled, report = compile_source_config(spec)
+        except CreativeContractError as exc:
+            raise CreativeServiceError(str(exc)) from exc
+        parsed["source_config"] = compiled
+        parsed["creative_preflight"] = report
         return parsed
 
     @staticmethod
@@ -115,6 +122,13 @@ one exact spoken line per scene, no repeated line fragments, no montage inside a
 clear ending. Return at least one hook, one CTA, and enough chronological main leaf scenes to execute the user's
 creative without an arbitrary scene-count ceiling. Keep health claims educational and non-medical. Preserve the
 template's character and visual rules.
+
+GOOGLE OMNI EXECUTION CONTRACT:
+Every leaf scene must be 3-10 seconds. Size the exact spoken line so it finishes naturally before the scene ends,
+including a short safety margin; use roughly 2.35 spoken words per second as the upper pacing limit. If a thought
+needs more than 10 seconds, split it into chronological independent leaf scenes with distinct visuals and no
+repeated opening or closing words. Every leaf needs one visual action, one location, one speaker, one exact spoken
+line, and a non-empty prompt. The attached/generated first frame is the visual source of truth for that leaf.
 
 USER REQUEST:
 {message}
@@ -158,7 +172,7 @@ Return only valid JSON with this shape:
     "language": "...",
     "defaults": {{"aspect_ratio": "9:16", "duration_seconds": 5, "resolution": "720p"}},
     "master_prompt": "account-specific consistency and UGC rules",
-    "hooks": [{{"id":"...","title":"...","duration_seconds":4,"subject_label":"...","subject_placement_hint":"...","script":"...","prompt":"... Native dialogue: ..."}}],
+    "hooks": [{{"id":"...","title":"...","hook_text":"direct scroll-stopping overlay under 8 words","duration_seconds":4,"subject_label":"...","subject_placement_hint":"...","script":"...","prompt":"... Native dialogue: ..."}}],
     "mains": [{{"id":"...","title":"...","prompt":"...","segments":[{{"id":"...","duration_seconds":5,"subject_label":"...","subject_placement_hint":"...","script":"...","prompt":"... Native dialogue: ..."}}]}}],
     "ctas": [{{"id":"...","title":"...","duration_seconds":5,"subject_label":"...","subject_placement_hint":"...","script":"...","prompt":"... Native dialogue: ..."}}],
     "variants": {{"count":1,"min_total_seconds":25,"max_total_seconds":45,"seed":20260804,"stitch_leaf_segments":true}}
@@ -200,10 +214,7 @@ def parse_json_response(text: str) -> dict[str, Any]:
 
 
 def validate_source_config(spec: dict[str, Any]) -> None:
-    for key in ("concept_id", "account_id", "master_prompt", "hooks", "mains", "ctas"):
-        if not spec.get(key):
-            raise CreativeServiceError(f"Creative source_config is missing {key}.")
-    scene_count = len(spec["hooks"]) + len(spec["ctas"])
-    scene_count += sum(len(item.get("segments") or [item]) for item in spec["mains"])
-    if scene_count < 3:
-        raise CreativeServiceError("Creative source_config must contain at least 3 leaf scenes.")
+    try:
+        compile_source_config(spec)
+    except CreativeContractError as exc:
+        raise CreativeServiceError(str(exc)) from exc

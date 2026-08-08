@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import copy
 import json
 import os
@@ -12,6 +13,8 @@ from datetime import date, datetime, time as dt_time, timedelta, timezone, tzinf
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from factory_dashboard.app.services.creative_contract import CreativeContractError, compile_source_config
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -350,13 +353,30 @@ def run_autopilot(
         source_config = read_json(source_config_path)
     assert_account_id(source_config, account_id, source_config_path.name)
 
+    try:
+        source_config, creative_preflight = compile_source_config(source_config)
+    except CreativeContractError as exc:
+        write_json(
+            run_dir / "creative_preflight.json",
+            {"status": "failed", "account_id": account_id, "error": str(exc)},
+        )
+        raise StageExecutionError("creative_preflight", exc) from exc
+    source_config_path = run_dir / "compiled_source_config.json"
+    write_json(source_config_path, source_config)
+    write_json(
+        run_dir / "creative_preflight.json",
+        {**creative_preflight, "account_id": account_id, "concept_id": str(concept["concept_id"])},
+    )
+
     v3_manifest = run_checked(
         "prepare_v3_manifest",
         lambda: prepare_v3_manifest(account_id, wrapper_config, source_config, source_config_path, run_dir),
+        run_dir=run_dir,
     )
     request_references = run_checked(
         "download_dashboard_references",
         lambda: download_dashboard_references(account_id, generation_request, run_dir),
+        run_dir=run_dir,
     )
     first_frames = run_checked(
         "generate_first_frames",
@@ -368,6 +388,7 @@ def run_autopilot(
             config,
             explicit_references=request_references,
         ),
+        run_dir=run_dir,
     )
     omni_config_path = run_checked(
         "build_omni_config",
@@ -379,13 +400,20 @@ def run_autopilot(
             today=today,
             concept_id=str(concept["concept_id"]),
         ),
+        run_dir=run_dir,
     )
     omni_dir = run_dir / "omni"
-    run_checked("generate_omni_video", lambda: run_omni(omni_config_path, omni_dir, run_dir))
-    final_video = run_checked("resolve_final_video", lambda: resolve_variant_video(omni_dir))
+    run_checked("generate_omni_video", lambda: run_omni(omni_config_path, omni_dir, run_dir), run_dir=run_dir)
+    final_video = run_checked("resolve_final_video", lambda: resolve_variant_video(omni_dir), run_dir=run_dir)
+    captioned_video = run_checked(
+        "finish_captions_and_hook",
+        lambda: finish_captions_and_hook(final_video, omni_config_path, source_config, run_dir),
+        run_dir=run_dir,
+    )
     publish_ready = run_checked(
         "postprocess_publish_ready",
-        lambda: postprocess_publish_ready(final_video, run_dir, config),
+        lambda: postprocess_publish_ready(captioned_video, run_dir, config),
+        run_dir=run_dir,
     )
     hosted_video = run_checked(
         "persist_final_video",
@@ -396,6 +424,7 @@ def run_autopilot(
             today=today,
             concept_id=str(concept["concept_id"]),
         ),
+        run_dir=run_dir,
     )
     if generation_request and not str(args.publish_at or "").strip():
         publish_at = datetime.now(tz) + timedelta(minutes=10)
@@ -404,6 +433,7 @@ def run_autopilot(
     video_manifest = run_checked(
         "write_video_manifest",
         lambda: write_video_manifest(account_id, run_dir, publish_ready, concept, publish_at),
+        run_dir=run_dir,
     )
 
     publish_result: dict[str, Any] = {"status": "skipped"}
@@ -420,7 +450,9 @@ def run_autopilot(
                 dry_run=bool(args.dry_run),
                 run_dir=run_dir,
             ),
+            run_dir=run_dir,
         )
+    append_execution_event(run_dir, "pipeline", "succeeded")
 
     result = {
         **plan,
@@ -474,13 +506,44 @@ def persist_final_video(
     }
 
 
-def run_checked(stage: str, operation: Any) -> Any:
+def run_checked(stage: str, operation: Any, *, run_dir: Path | None = None) -> Any:
+    if run_dir is not None:
+        append_execution_event(run_dir, stage, "started")
     try:
-        return operation()
+        result = operation()
+        if run_dir is not None:
+            append_execution_event(run_dir, stage, "succeeded")
+        return result
     except StageExecutionError:
+        if run_dir is not None:
+            append_execution_event(run_dir, stage, "failed", "nested stage failure")
         raise
     except Exception as exc:
+        if run_dir is not None:
+            append_execution_event(run_dir, stage, "failed", str(exc))
         raise StageExecutionError(stage, exc) from exc
+
+
+def append_execution_event(run_dir: Path, stage: str, status: str, detail: str = "") -> None:
+    path = run_dir / "execution_events.json"
+    events: list[dict[str, Any]] = []
+    if path.exists():
+        try:
+            current = read_json(path)
+            events = list(current.get("events") or []) if isinstance(current, dict) else []
+        except (OSError, json.JSONDecodeError):
+            events = []
+    event = {
+        "sequence": len(events) + 1,
+        "stage": stage,
+        "status": status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    if detail:
+        event["detail"] = detail[:2000]
+    events.append(event)
+    overall_status = "failed" if status == "failed" else ("succeeded" if stage == "pipeline" else "in_progress")
+    write_json(path, {"status": overall_status, "events": events})
 
 
 def prepare_v3_manifest(
@@ -546,6 +609,7 @@ def generate_first_frames(
     if not api_key:
         raise AccountAutopilotError("OPENAI_API_KEY is required for first-frame generation.")
     from daily_factory.first_frames import generate_openai_first_frame
+    from Mix.v3.image_qa import build_fixed_prompt
 
     first_frame_config = dict(autopilot_config.get("first_frame") or {})
     settings = {
@@ -586,17 +650,100 @@ def generate_first_frames(
                 "logos, captions, or unrelated objects from the references."
             )
         output_path.with_suffix(".prompt.txt").parent.mkdir(parents=True, exist_ok=True)
+        qa_result: dict[str, Any] = {}
+        for attempt in range(1, 4):
+            output_path.with_suffix(f".attempt_{attempt}.prompt.txt").write_text(prompt, encoding="utf-8")
+            generate_openai_first_frame(
+                prompt=prompt,
+                output_path=output_path,
+                reference_images=references,
+                api_key=api_key,
+                settings=settings,
+            )
+            qa_result = evaluate_first_frame(
+                image_path=output_path,
+                qa_prompt=str(record["qa_prompt"]),
+                api_key=api_key,
+                model=str(first_frame_config.get("qa_model") or os.getenv("OPENAI_ANALYZER_MODEL") or "gpt-4.1-mini"),
+            )
+            write_json(output_path.with_suffix(f".attempt_{attempt}.qa.json"), qa_result)
+            if first_frame_passed(qa_result):
+                break
+            prompt = build_fixed_prompt(
+                prompt,
+                qa_result,
+                project={
+                    "subject_label": record.get("subject_label"),
+                    "subject_placement_hint": record.get("subject_placement_hint"),
+                },
+            )
+        else:
+            raise AccountAutopilotError(
+                f"First-frame QA failed after 3 attempts for scene {record['scene_id']}: "
+                f"{qa_result.get('issues') or 'unspecified visual failure'}"
+            )
         output_path.with_suffix(".prompt.txt").write_text(prompt, encoding="utf-8")
-        generate_openai_first_frame(
-            prompt=prompt,
-            output_path=output_path,
-            reference_images=references,
-            api_key=api_key,
-            settings=settings,
-        )
         generated.append(output_path)
     update_v3_manifest_first_images(run_dir, generated)
     return generated
+
+
+def evaluate_first_frame(*, image_path: Path, qa_prompt: str, api_key: str, model: str) -> dict[str, Any]:
+    import requests
+
+    image_data = base64.b64encode(image_path.read_bytes()).decode("ascii")
+    response = requests.post(
+        "https://api.openai.com/v1/responses",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "model": model,
+            "input": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": qa_prompt},
+                        {"type": "input_image", "image_url": f"data:image/png;base64,{image_data}", "detail": "high"},
+                    ],
+                }
+            ],
+            "text": {"format": {"type": "json_object"}},
+        },
+        timeout=180,
+    )
+    if response.status_code >= 400:
+        raise AccountAutopilotError(
+            f"First-frame QA request failed: HTTP {response.status_code}: {response.text[:800]}"
+        )
+    payload = response.json()
+    text = str(payload.get("output_text") or "").strip()
+    if not text:
+        parts: list[str] = []
+        for item in list(payload.get("output") or []):
+            for content in list(item.get("content") or []):
+                if isinstance(content, dict) and isinstance(content.get("text"), str):
+                    parts.append(content["text"])
+        text = "\n".join(parts).strip()
+    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.IGNORECASE | re.DOTALL)
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise AccountAutopilotError(f"First-frame QA returned invalid JSON: {text[:800]}") from exc
+    if not isinstance(parsed, dict):
+        raise AccountAutopilotError("First-frame QA response must be an object.")
+    parsed["model"] = model
+    return parsed
+
+
+def first_frame_passed(result: dict[str, Any]) -> bool:
+    if str(result.get("status") or "").upper() != "PASS":
+        return False
+    for key in ("product_placement", "hand_realism", "face_quality", "background_realism", "ugc_authenticity"):
+        try:
+            if float(result.get(key) or 0) < 8:
+                return False
+        except (TypeError, ValueError):
+            return False
+    return not bool(result.get("issues"))
 
 
 def load_configured_reference_files(account_dir: Path, values: list[Any], *, label: str) -> list[Path]:
@@ -775,6 +922,47 @@ def postprocess_publish_ready(input_path: Path, run_dir: Path, config: dict[str,
         timeout_seconds=1800,
     )
     return output_path
+
+
+def finish_captions_and_hook(
+    input_path: Path,
+    omni_config_path: Path,
+    source_config: dict[str, Any],
+    run_dir: Path,
+) -> Path:
+    from pipeline_google_omni_stack.publish_finish import finish_for_publish
+
+    out_dir = run_dir / "publish_finish"
+    hook_text = derive_visual_hook_text(source_config)
+    metadata = finish_for_publish(
+        input_video=input_path,
+        config_path=omni_config_path,
+        out_dir=out_dir,
+        hook_text=hook_text,
+        silence_noise="-38dB",
+        silence_duration=0.35,
+        keep_start=0.06,
+        keep_end=0.08,
+        caption_delay=0.16,
+    )
+    output = Path(str(metadata.get("final_video") or ""))
+    if not output.exists() or output.stat().st_size <= 0:
+        raise AccountAutopilotError(f"Caption/hook finish did not create a video: {output}")
+    return output
+
+
+def derive_visual_hook_text(source_config: dict[str, Any]) -> str:
+    hooks = [item for item in list(source_config.get("hooks") or []) if isinstance(item, dict)]
+    if not hooks:
+        raise AccountAutopilotError("Cannot derive visual hook text without a hook scene.")
+    hook = hooks[0]
+    explicit = str(hook.get("hook_text") or source_config.get("hook_text") or "").strip()
+    text = explicit or str(hook.get("script") or "").strip()
+    text = re.sub(r"\s+", " ", text).strip().strip('"')
+    if not text:
+        raise AccountAutopilotError("First hook requires hook_text or script for the visual overlay.")
+    words = text.split()
+    return " ".join(words[:12])
 
 
 def write_video_manifest(
