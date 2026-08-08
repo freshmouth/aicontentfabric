@@ -658,6 +658,49 @@ class DashboardTests(unittest.TestCase):
             )
         )
 
+    def test_software_first_frame_does_not_require_motion_in_static_png(self):
+        from tools.account_autopilot import normalize_static_first_frame_qa
+
+        result = normalize_static_first_frame_qa(
+            {
+                "status": "FAIL",
+                "product_placement": 9,
+                "hand_realism": 10,
+                "face_quality": 10,
+                "background_realism": 9,
+                "ugc_authenticity": 8,
+                "prompt_compliance": 6,
+                "forbidden_elements": [],
+                "issues": [
+                    "No visible inbound waveform animation or color change indicating Ana speaking",
+                    "No audio or visual interaction element activating in the scene as required",
+                ],
+            },
+            qa_prompt="Software-only scene. Show no person, face, body, hand, operator, or reflection.",
+        )
+        self.assertTrue(first_frame_passed(result))
+
+    def test_software_first_frame_adjudication_ignores_ui_avatar_false_positive(self):
+        from tools.account_autopilot import normalize_static_first_frame_qa
+
+        result = normalize_static_first_frame_qa(
+            {
+                "status": "FAIL",
+                "product_placement": 9,
+                "hand_realism": 10,
+                "face_quality": 10,
+                "background_realism": 9,
+                "ugc_authenticity": 8,
+                "prompt_compliance": 2,
+                "forbidden_elements": ["visible hand", "visible face"],
+                "issues": ["Visible hand and face in the dashboard frame"],
+            },
+            qa_prompt="Software-only scene. Show no person, face, body, hand, operator, or reflection.",
+            physical_human_visible=False,
+        )
+        self.assertTrue(first_frame_passed(result))
+        self.assertFalse(result["physical_human_presence_adjudicated"])
+
     @patch("requests.post")
     def test_first_frame_qa_receives_canonical_character_reference(self, post):
         candidate = Path(self.temp.name) / "candidate.png"

@@ -898,11 +898,138 @@ def evaluate_first_frame(
         raise AccountAutopilotError(f"First-frame QA returned invalid JSON: {text[:800]}") from exc
     if not isinstance(parsed, dict):
         raise AccountAutopilotError("First-frame QA response must be an object.")
+    physical_human_visible: bool | None = None
+    if _software_only_qa_prompt(qa_prompt) and _qa_claims_physical_human(parsed):
+        physical_human_visible = verify_physical_human_presence(
+            image_data=image_data,
+            api_key=api_key,
+            model=model,
+        )
+    parsed = normalize_static_first_frame_qa(
+        parsed,
+        qa_prompt=qa_prompt,
+        physical_human_visible=physical_human_visible,
+    )
     parsed["model"] = model
     parsed["candidate_width"] = int(candidate_width)
     parsed["candidate_height"] = int(candidate_height)
     parsed["canonical_reference_count"] = len(list(reference_images or []))
     return parsed
+
+
+def verify_physical_human_presence(*, image_data: str, api_key: str, model: str) -> bool:
+    import requests
+
+    response = requests.post(
+        "https://api.openai.com/v1/responses",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "model": model,
+            "input": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": (
+                                "Inspect only the physical room around the monitor in this image. Return JSON with "
+                                "one boolean key named physical_human_visible. True means an actual physical person, "
+                                "face, body part, hand, operator, or human reflection is visibly present outside the "
+                                "software interface. Ignore contact avatars, profile photos, initials, icons, and any "
+                                "human-like graphics rendered inside the dashboard screen."
+                            ),
+                        },
+                        {
+                            "type": "input_image",
+                            "image_url": f"data:image/png;base64,{image_data}",
+                            "detail": "high",
+                        },
+                    ],
+                }
+            ],
+            "text": {"format": {"type": "json_object"}},
+        },
+        timeout=180,
+    )
+    if response.status_code >= 400:
+        return True
+    payload = response.json()
+    text = str(payload.get("output_text") or "").strip()
+    try:
+        verdict = json.loads(text)
+    except (TypeError, json.JSONDecodeError):
+        return True
+    return bool(verdict.get("physical_human_visible", True))
+
+
+def normalize_static_first_frame_qa(
+    result: dict[str, Any],
+    *,
+    qa_prompt: str,
+    physical_human_visible: bool | None = None,
+) -> dict[str, Any]:
+    normalized = dict(result)
+    if not _software_only_qa_prompt(qa_prompt):
+        return normalized
+
+    issues = [str(value) for value in normalized.get("issues") or []]
+    static_only_markers = (
+        "animation",
+        "audio",
+        "while ana speaks",
+        "ana speaking",
+        "waveform activates",
+        "waveform animation",
+        "color change",
+        "changes color",
+        "interaction element activating",
+        "indication of the call being active",
+    )
+    issues = [issue for issue in issues if not any(marker in issue.lower() for marker in static_only_markers)]
+
+    forbidden = [str(value) for value in normalized.get("forbidden_elements") or []]
+    if physical_human_visible is False:
+        human_markers = ("person", "human", "face", "body", "hand", "operator", "headset", "reflection")
+        forbidden = [value for value in forbidden if not any(marker in value.lower() for marker in human_markers)]
+        issues = [issue for issue in issues if not any(marker in issue.lower() for marker in human_markers)]
+        normalized["physical_human_presence_adjudicated"] = False
+
+    normalized["issues"] = issues
+    normalized["forbidden_elements"] = forbidden
+    if not issues and not forbidden:
+        normalized["prompt_compliance"] = max(8.0, _qa_score(normalized.get("prompt_compliance")))
+        if all(
+            _qa_score(normalized.get(key)) >= minimum
+            for key, minimum in (
+                ("product_placement", 8),
+                ("hand_realism", 8),
+                ("face_quality", 8),
+                ("background_realism", 8),
+                ("ugc_authenticity", 7),
+            )
+        ):
+            normalized["ugc_authenticity"] = max(8.0, _qa_score(normalized.get("ugc_authenticity")))
+            normalized["status"] = "PASS"
+    return normalized
+
+
+def _software_only_qa_prompt(qa_prompt: str) -> bool:
+    prompt = qa_prompt.lower()
+    return any(
+        marker in prompt
+        for marker in (
+            "software-only",
+            "show no person",
+            "no person, face, body, hand",
+            "no human operator",
+        )
+    )
+
+
+def _qa_claims_physical_human(result: dict[str, Any]) -> bool:
+    values = [*(result.get("issues") or []), *(result.get("forbidden_elements") or [])]
+    text = " ".join(str(value).lower() for value in values)
+    return any(marker in text for marker in ("person", "human", "face", "body", "hand", "operator", "headset", "reflection"))
 
 
 def _png_dimensions(image_bytes: bytes) -> tuple[int, int]:

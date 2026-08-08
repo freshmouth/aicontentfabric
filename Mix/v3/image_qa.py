@@ -59,6 +59,12 @@ Camera and hand logic:
 - If the prompt separately requests a desk phone or another device, judge that prop only in its requested location.
 - If the prompt does not require visible hands and no hands are visible, score hand_realism as 10 unless an anatomical artifact is actually present. Never invent a missing-hand failure just to populate this score.
 
+Static first-frame logic:
+- This candidate is a single paused first frame, not the finished animated video. Judge only visible composition and physical state.
+- Never fail a still image because motion, audio, waveform animation, a color change over time, or a later interaction cannot be observed in one frame.
+- A stable visible waveform, connected-call state, message, or dashboard state is sufficient when the prompt assigns its animation or voice to the later video step.
+- In a software-only physical-monitor scene, small UI avatars, profile icons, contact initials, and photos rendered inside the dashboard are interface content. They are not a visible physical person, face, body, hand, operator, or reflection in the room.
+
 Character-reference logic:
 - The first attached image is the generated candidate. When additional images are attached, they are canonical character references used only to verify identity.
 - Compare identity only when a canonical reference is attached. Without one, do not claim an identity mismatch from text alone.
