@@ -22,9 +22,12 @@
     ],
     "reference_profiles": {
       "dashboard": [
-        "references/dashboard"
+        "references/dashboard_vertical"
       ]
     },
+    "static_reference_profiles": [
+      "dashboard"
+    ],
     "local_reference_max_images": 6,
     "openai_model": "gpt-image-2",
     "openai_size": "720x1280",

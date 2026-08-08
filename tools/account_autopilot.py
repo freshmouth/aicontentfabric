@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -770,6 +771,11 @@ def generate_first_frames(
     explicit = list(explicit_references or [])
     local_references = load_local_reference_images(account_dir, first_frame_config)
     reference_profiles = load_reference_profiles(account_dir, first_frame_config)
+    static_reference_profiles = {
+        str(value or "").strip()
+        for value in list(first_frame_config.get("static_reference_profiles") or [])
+        if str(value or "").strip()
+    }
     aesthetic_references: list[Path] = [*explicit, *local_references]
     if bool(first_frame_config.get("with_cloudinary_refs", True)):
         aesthetic_references.extend(load_reference_images(account_dir, wrapper_config, run_dir))
@@ -782,6 +788,25 @@ def generate_first_frames(
         scene_character_references = character_references if bool(record.get("character_visible", True)) else []
         profile_name = str(record.get("reference_profile") or "").strip()
         scene_aesthetic_references = reference_profiles.get(profile_name, aesthetic_references) if profile_name else aesthetic_references
+        if profile_name in static_reference_profiles:
+            if not scene_aesthetic_references:
+                raise AccountAutopilotError(f"Static reference profile has no images: {profile_name}")
+            source_frame = scene_aesthetic_references[(index - 1) % len(scene_aesthetic_references)]
+            shutil.copyfile(source_frame, output_path)
+            write_json(
+                output_path.with_suffix(".qa.json"),
+                {
+                    "status": "PASS",
+                    "mode": "locked_static_reference",
+                    "reference_profile": profile_name,
+                    "source_frame": str(source_frame),
+                    "issues": [],
+                    "forbidden_elements": [],
+                },
+            )
+            output_path.with_suffix(".prompt.txt").write_text(prompt, encoding="utf-8")
+            generated.append(output_path)
+            continue
         references = deduplicate_paths([*scene_character_references, *scene_aesthetic_references])
         if scene_character_references:
             prompt += (
