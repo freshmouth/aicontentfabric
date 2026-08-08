@@ -807,7 +807,7 @@ def generate_first_frames(
                 model=str(first_frame_config.get("qa_model") or os.getenv("OPENAI_ANALYZER_MODEL") or "gpt-4.1-mini"),
             )
             write_json(output_path.with_suffix(f".attempt_{attempt}.qa.json"), qa_result)
-            if first_frame_passed(qa_result):
+            if first_frame_passed(qa_result, image_prompt=str(record["image_prompt"])):
                 break
             prompt = build_fixed_prompt(
                 prompt,
@@ -874,7 +874,16 @@ def evaluate_first_frame(*, image_path: Path, qa_prompt: str, api_key: str, mode
     return parsed
 
 
-def first_frame_passed(result: dict[str, Any]) -> bool:
+def first_frame_passed(result: dict[str, Any], *, image_prompt: str = "") -> bool:
+    if _selfie_capture_device_false_positive(result, image_prompt):
+        return all(
+            _qa_score(result.get(key)) >= minimum
+            for key, minimum in (
+                ("face_quality", 8),
+                ("background_realism", 8),
+                ("ugc_authenticity", 7),
+            )
+        )
     if str(result.get("status") or "").upper() != "PASS":
         return False
     for key in ("product_placement", "hand_realism", "face_quality", "background_realism", "ugc_authenticity"):
@@ -884,6 +893,63 @@ def first_frame_passed(result: dict[str, Any]) -> bool:
         except (TypeError, ValueError):
             return False
     return not bool(result.get("issues"))
+
+
+def _selfie_capture_device_false_positive(result: dict[str, Any], image_prompt: str) -> bool:
+    prompt = image_prompt.lower()
+    if not any(marker in prompt for marker in ("selfie", "front-facing", "front facing")):
+        return False
+    if any(
+        marker in prompt
+        for marker in (
+            "holding a phone",
+            "holds a phone",
+            "phone in hand",
+            "telefono en la mano",
+            "teléfono en la mano",
+            "sosteniendo un telefono",
+            "sosteniendo un teléfono",
+        )
+    ):
+        return False
+    issues_value = result.get("issues")
+    if isinstance(issues_value, list):
+        issues = " ".join(str(item) for item in issues_value).lower()
+    else:
+        issues = str(issues_value or "").lower()
+    missing_capture_phone = "phone" in issues and any(
+        marker in issues
+        for marker in (
+            "not visible",
+            "does not show",
+            "lacks visible",
+            "lack visible",
+            "not holding",
+            "not held",
+            "missing physically plausible phone in hand",
+        )
+    )
+    real_physical_error = any(
+        marker in issues
+        for marker in (
+            "extra hand",
+            "extra finger",
+            "deformed",
+            "distorted hand",
+            "floating",
+            "detached",
+            "wrong face",
+            "identity mismatch",
+        )
+    )
+    return missing_capture_phone and not real_physical_error
+
+
+def _qa_score(value: Any) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def load_configured_reference_files(account_dir: Path, values: list[Any], *, label: str) -> list[Path]:

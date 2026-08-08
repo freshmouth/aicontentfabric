@@ -559,6 +559,25 @@ class DashboardTests(unittest.TestCase):
         self.assertFalse(first_frame_passed({**passing, "hand_realism": 7}))
         self.assertFalse(first_frame_passed({**passing, "issues": ["floating object"]}))
 
+    def test_first_frame_gate_does_not_require_selfie_camera_inside_frame(self):
+        false_negative = {
+            "status": "FAIL",
+            "product_placement": 6,
+            "hand_realism": 1,
+            "face_quality": 9,
+            "background_realism": 9,
+            "ugc_authenticity": 7,
+            "issues": (
+                "The image does not show the founder holding the iPhone. Hands are not visible, "
+                "but the separate desk phone is present and the face and office are realistic."
+            ),
+        }
+        prompt = "Handheld iPhone selfie while a separate desk phone rings on the desk."
+        self.assertTrue(first_frame_passed(false_negative, image_prompt=prompt))
+        self.assertFalse(
+            first_frame_passed(false_negative, image_prompt="Woman holding a phone in her hand for the camera.")
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

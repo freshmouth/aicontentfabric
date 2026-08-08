@@ -35,12 +35,20 @@ Return strict JSON with these exact keys:
 - status
 - issues
 
+The `issues` value MUST be a JSON array of critical physical errors. Return []
+when there are no critical errors. Do not include optional improvements there.
+
 Scoring rubric, 1-10:
 1. product_placement: the {subject.label} is {subject.placement_hint}; fail if the {subject.label} floats, is detached from the hand/surface, appears physically impossible, is missing, or is replaced by the wrong subject.
 2. hand_realism: hands and fingers are anatomically plausible and interact naturally with the scene.
 3. face_quality: any visible face looks realistic, stable, and not waxy or distorted.
 4. background_realism: the environment matches the requested scene and feels physically real.
 5. ugc_authenticity: the frame feels like an authentic paused UGC video, not a polished ad.
+
+Camera and hand logic:
+- A selfie or front-facing phone-camera frame is photographed by a phone outside the image. Never require that capture phone to be visible or held inside its own frame.
+- If the prompt separately requests a desk phone or another device, judge that prop only in its requested location.
+- If the prompt does not require visible hands and no hands are visible, score hand_realism as 10 unless an anatomical artifact is actually present. Never invent a missing-hand failure just to populate this score.
 
 PASS only when all five scores are 8 or higher and there are no critical physical errors.
 

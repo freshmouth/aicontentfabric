@@ -207,6 +207,7 @@ jobs:
             accounts/*/runs/*/v3_execution_manifest.json
             accounts/*/runs/*/first_images/*.qa.json
             accounts/*/runs/*/first_images/*.prompt.txt
+            accounts/*/runs/*/first_images/*.png
             accounts/*/runs/*/*_omni_config.json
             accounts/*/runs/*/omni_stdout.txt
             accounts/*/runs/*/omni_stderr.txt
