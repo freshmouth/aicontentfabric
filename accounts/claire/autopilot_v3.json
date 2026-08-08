@@ -26,6 +26,11 @@
   },
   "concepts": [
     {
+      "concept_id": "hydration_pickle_juice",
+      "v3_config": "config.v3.hydration_pickle_juice.json",
+      "caption": "The pickles are the distraction. The real hydration question is what disappears when you sweat, and what plain water never replaces. Comment HYDRATE and I will send you the exact mineral mix I use. #Hydration #Electrolytes #WellnessTips"
+    },
+    {
       "concept_id": "yogurt_label_trap",
       "v3_config": "config.v3.yogurt_label_trap.json",
       "caption": "The front of the yogurt cup is selling a feeling. The useful comparison is hiding on the back. One number changes the whole breakfast decision. Comment SWAP and I will send the supermarket checklist."
