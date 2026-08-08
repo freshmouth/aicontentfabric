@@ -712,6 +712,8 @@ def prepare_v3_manifest(
             "component_id": scene.get("component_id", ""),
             "scene_id": scene.get("id", f"scene_{index:02d}"),
             "duration_seconds": scene.get("duration_seconds"),
+            "character_visible": bool(scene.get("character_visible", True)),
+            "speaker_role": str(scene.get("speaker_role") or ""),
             "subject_label": subject.label,
             "subject_placement_hint": subject.placement_hint,
             "image_prompt": image_prompt,
@@ -769,14 +771,15 @@ def generate_first_frames(
     aesthetic_references: list[Path] = [*explicit, *local_references]
     if bool(first_frame_config.get("with_cloudinary_refs", True)):
         aesthetic_references.extend(load_reference_images(account_dir, wrapper_config, run_dir))
-    references = deduplicate_paths([*character_references, *aesthetic_references])
     generated: list[Path] = []
     for record in records:
         index = int(record["index"])
         scene_id = slug(str(record["scene_id"]))
         output_path = run_dir / "first_images" / f"{index:02d}_{scene_id}.png"
         prompt = str(record["image_prompt"])
-        if character_references:
+        scene_character_references = character_references if bool(record.get("character_visible", True)) else []
+        references = deduplicate_paths([*scene_character_references, *aesthetic_references])
+        if scene_character_references:
             prompt += (
                 "\n\nCHARACTER LOCK: The first attached reference image is the canonical identity for this account. "
                 "Preserve the same underlying person, face shape, eyes, nose, age, skin tone, hairline, and overall "
@@ -966,24 +969,33 @@ def load_configured_reference_files(account_dir: Path, values: list[Any], *, lab
 
 
 def load_local_reference_images(account_dir: Path, first_frame_config: dict[str, Any]) -> list[Path]:
-    raw_dir = str(first_frame_config.get("local_reference_dir") or "").strip()
-    if not raw_dir:
+    raw_dirs = [str(value or "").strip() for value in list(first_frame_config.get("local_reference_dirs") or [])]
+    legacy_dir = str(first_frame_config.get("local_reference_dir") or "").strip()
+    if legacy_dir:
+        raw_dirs.insert(0, legacy_dir)
+    raw_dirs = [value for value in raw_dirs if value]
+    if not raw_dirs:
         return []
-    reference_dir = require_inside(
-        account_dir,
-        resolve_path(account_dir, raw_dir),
-        "local reference directory",
-    )
-    if not reference_dir.exists() or not reference_dir.is_dir():
-        raise AccountAutopilotError(f"Missing local reference directory: {reference_dir}")
     limit = max(0, int(first_frame_config.get("local_reference_max_images") or 4))
-    images = sorted(
-        path
-        for path in reference_dir.iterdir()
-        if path.is_file() and path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
-    )
+    images: list[Path] = []
+    for raw_dir in raw_dirs:
+        reference_dir = require_inside(
+            account_dir,
+            resolve_path(account_dir, raw_dir),
+            "local reference directory",
+        )
+        if not reference_dir.exists() or not reference_dir.is_dir():
+            raise AccountAutopilotError(f"Missing local reference directory: {reference_dir}")
+        images.extend(
+            sorted(
+                path
+                for path in reference_dir.iterdir()
+                if path.is_file() and path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
+            )
+        )
     if not images:
-        raise AccountAutopilotError(f"No local reference images found in: {reference_dir}")
+        raise AccountAutopilotError(f"No local reference images found in: {', '.join(raw_dirs)}")
+    images = deduplicate_paths(images)
     return images[:limit] if limit else images
 
 
@@ -1153,7 +1165,7 @@ def finish_captions_and_hook(
         silence_duration=0.35,
         keep_start=0.06,
         keep_end=0.08,
-        caption_delay=0.16,
+        caption_delay=0.0,
     )
     output = Path(str(metadata.get("final_video") or ""))
     if not output.exists() or output.stat().st_size <= 0:

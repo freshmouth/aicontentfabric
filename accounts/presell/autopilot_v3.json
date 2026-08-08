@@ -17,8 +17,11 @@
     "character_reference_images": [
       "references/character/founder_master_v3.png"
     ],
-    "local_reference_dir": "references/ugc_v3_cloudinary",
-    "local_reference_max_images": 3,
+    "local_reference_dirs": [
+      "references/ugc_v3_cloudinary",
+      "references/dashboard"
+    ],
+    "local_reference_max_images": 6,
     "openai_model": "gpt-image-2",
     "openai_size": "720x1280",
     "openai_quality": "medium",

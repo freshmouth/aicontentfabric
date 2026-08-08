@@ -23,6 +23,7 @@ from tools.account_autopilot import (
     derive_visual_hook_text,
     first_frame_passed,
     load_generation_request,
+    load_local_reference_images,
     run_autopilot,
 )
 
@@ -222,6 +223,9 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("Make the Cyclops hook personal.", prompt)
         self.assertIn("I reframed the cave as avoidance.", prompt)
         self.assertIn("Show me the revised ending.", prompt)
+        self.assertIn("Preserve every user-supplied name, number, amount, currency", prompt)
+        self.assertIn("agent asks, lead answers, agent responds", prompt)
+        self.assertIn("subtitles only after the final stitched audio", prompt)
 
     def test_request_loader_rejects_cross_account_source(self):
         path = Path(self.temp.name) / "request.json"
@@ -558,6 +562,23 @@ class DashboardTests(unittest.TestCase):
         with self.assertRaisesRegex(CreativeContractError, "Split its dialogue"):
             compile_source_config(spec)
 
+    def test_creative_preflight_rejects_ambiguous_currency(self):
+        spec = {
+            "concept_id": "ambiguous_currency",
+            "account_id": "presell",
+            "master_prompt": "Keep the Presell office stable.",
+            "hooks": [{"id": "hook", "script": "Nos pagaron $80,000 por esto.", "prompt": "Founder selfie."}],
+            "mains": [{"id": "main", "script": "Entró el lead.", "prompt": "Dashboard event."}],
+            "ctas": [{"id": "cta", "script": "Comenta SISTEMA.", "prompt": "Founder closes."}],
+        }
+
+        with self.assertRaisesRegex(CreativeContractError, "ambiguous currency"):
+            compile_source_config(spec)
+
+        spec["hooks"][0]["script"] = "Nos pagaron ochenta mil pesos por esto."
+        compiled, _ = compile_source_config(spec)
+        self.assertEqual(compiled["hooks"][0]["script"], "Nos pagaron ochenta mil pesos por esto.")
+
     def test_visual_hook_prefers_explicit_direct_overlay(self):
         text = derive_visual_hook_text(
             {
@@ -603,6 +624,25 @@ class DashboardTests(unittest.TestCase):
         self.assertFalse(
             first_frame_passed(false_negative, image_prompt="Woman holding a phone in her hand for the camera.")
         )
+
+    def test_local_reference_loader_combines_account_scoped_directories(self):
+        account_dir = Path(self.temp.name) / "account"
+        ugc_dir = account_dir / "refs" / "ugc"
+        dashboard_dir = account_dir / "refs" / "dashboard"
+        ugc_dir.mkdir(parents=True)
+        dashboard_dir.mkdir(parents=True)
+        (ugc_dir / "ugc.png").write_bytes(b"image")
+        (dashboard_dir / "dashboard.png").write_bytes(b"image")
+
+        references = load_local_reference_images(
+            account_dir,
+            {
+                "local_reference_dirs": ["refs/ugc", "refs/dashboard"],
+                "local_reference_max_images": 5,
+            },
+        )
+
+        self.assertEqual([path.name for path in references], ["ugc.png", "dashboard.png"])
 
 
 if __name__ == "__main__":

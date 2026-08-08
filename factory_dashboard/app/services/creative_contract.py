@@ -46,6 +46,12 @@ def compile_source_config(spec: dict[str, Any]) -> tuple[dict[str, Any], dict[st
             errors.append(f"Scene {scene_id} has no visual prompt.")
         if not script:
             errors.append(f"Scene {scene_id} has no exact spoken line.")
+        if re.search(r"\$\s*\d", script) and not re.search(
+            r"\b(pesos?|d[oó]lares?|usd|mxn|cad|aud|eur|euros?)\b", script, flags=re.IGNORECASE
+        ):
+            errors.append(
+                f"Scene {scene_id} uses an ambiguous currency symbol. Write the spoken currency unit explicitly."
+            )
 
         requested = parse_duration(
             leaf.get("duration_seconds"),

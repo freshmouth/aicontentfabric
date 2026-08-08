@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -83,26 +84,38 @@ def finish_for_publish(
     trimmed_duration = ffprobe_duration(no_silence_video)
 
     config = read_json(config_path)
-    source_timeline = source_scene_timeline(config, input_video.parent / "variant.json")
-    captions = build_captions(source_timeline, keep_intervals, trimmed_duration, caption_delay=caption_delay)
+    transcription_audio = out_dir / "final_audio_for_transcription.mp3"
+    extract_audio_for_transcription(
+        no_silence_video,
+        transcription_audio,
+        out_dir / "ffmpeg_extract_transcription_audio_log.txt",
+    )
+    transcript = transcribe_final_audio(
+        transcription_audio,
+        language=str(config.get("language") or ""),
+        api_key=os.getenv("OPENAI_API_KEY", "").strip(),
+    )
+    transcript_path = out_dir / "final_audio_transcript.json"
+    write_json(transcript_path, transcript)
+    captions = build_captions_from_words(list(transcript.get("words") or []), trimmed_duration)
     hook_settings = {
         "enabled": True,
         "text": hook_text,
         "start": 0.0,
-        "duration": 3.35,
-        "font_size": 46,
-        "max_chars_per_line": 23,
-        "max_lines": 3,
-        "top": 66,
-        "box_padding_x": 12,
-        "box_padding_y": 7,
+        "duration": 2.8,
+        "font_size": 42,
+        "max_chars_per_line": 27,
+        "max_lines": 2,
+        "top": 58,
+        "box_padding_x": 10,
+        "box_padding_y": 6,
         "box_radius": 10,
         "line_gap": 0,
-        "line_height": 58,
+        "line_height": 52,
         "fill_line_break_gaps": True,
         "box_seam_overlap": 8,
-        "side_margin": 18,
-        "char_width_factor": 0.54,
+        "side_margin": 24,
+        "char_width_factor": 0.5,
         "suppress_regular_captions": True,
     }
     captions = suppress_captions_for_hook_overlay(captions, hook_settings)
@@ -121,7 +134,11 @@ def finish_for_publish(
         "removed_seconds": round(duration - trimmed_duration, 3),
         "silence_noise": silence_noise,
         "silence_duration": silence_duration,
-        "caption_delay": caption_delay,
+        "caption_source": "final_audio_word_timestamps",
+        "caption_delay": 0.0,
+        "transcript": str(transcript_path),
+        "transcription_audio": str(transcription_audio),
+        "transcript_text": str(transcript.get("text") or ""),
         "raw_silences": raw_silences,
         "cut_silences": cut_silences,
         "keep_intervals": keep_intervals,
@@ -133,6 +150,123 @@ def finish_for_publish(
     }
     write_json(out_dir / "publish_finish_log.json", metadata)
     return metadata
+
+
+def extract_audio_for_transcription(input_video: Path, output_audio: Path, log_path: Path) -> None:
+    command = [
+        "ffmpeg",
+        "-nostdin",
+        "-y",
+        "-i",
+        str(input_video),
+        "-vn",
+        "-ac",
+        "1",
+        "-ar",
+        "16000",
+        "-c:a",
+        "libmp3lame",
+        "-b:a",
+        "96k",
+        str(output_audio),
+    ]
+    run_command(command, log_path=log_path, timeout=120, allow_failure=False)
+
+
+def transcribe_final_audio(video_path: Path, *, language: str, api_key: str) -> dict[str, Any]:
+    """Transcribe the finished, silence-trimmed audio; never infer captions from scene metadata."""
+    if not api_key:
+        raise PublishFinishError("OPENAI_API_KEY is required to caption the final rendered audio.")
+    try:
+        import requests
+    except ImportError as exc:
+        raise PublishFinishError("requests is required for final-audio transcription.") from exc
+    try:
+        import truststore
+
+        truststore.inject_into_ssl()
+    except ImportError:
+        pass
+
+    language_code = language.strip().split("-", 1)[0].lower()
+    data: list[tuple[str, str]] = [
+        ("model", "whisper-1"),
+        ("response_format", "verbose_json"),
+        ("timestamp_granularities[]", "word"),
+        ("temperature", "0"),
+    ]
+    if language_code:
+        data.append(("language", language_code))
+    mime_type = "audio/mpeg" if video_path.suffix.lower() == ".mp3" else "video/mp4"
+    with video_path.open("rb") as audio_file:
+        response = requests.post(
+            "https://api.openai.com/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            data=data,
+            files={"file": (video_path.name, audio_file, mime_type)},
+            timeout=180,
+        )
+    if response.status_code >= 400:
+        raise PublishFinishError(
+            f"Final-audio transcription failed: HTTP {response.status_code}: {response.text[:800]}"
+        )
+    payload = response.json()
+    words: list[dict[str, Any]] = []
+    for item in list(payload.get("words") or []):
+        token = str(item.get("word") or "").strip()
+        if not token:
+            continue
+        try:
+            start = float(item["start"])
+            end = float(item["end"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise PublishFinishError("Final-audio transcription returned invalid word timestamps.") from exc
+        words.append({"word": token, "start": start, "end": max(start + 0.04, end)})
+    if not words:
+        raise PublishFinishError("Final-audio transcription returned no word timestamps; captions were not burned.")
+    return {
+        "model": "whisper-1",
+        "language": payload.get("language") or language_code,
+        "duration": payload.get("duration"),
+        "text": str(payload.get("text") or "").strip(),
+        "words": words,
+    }
+
+
+def build_captions_from_words(words: list[dict[str, Any]], final_duration: float) -> list[dict[str, Any]]:
+    """Group real word timestamps without ever showing a caption before its first spoken word."""
+    captions: list[dict[str, Any]] = []
+    chunk: list[dict[str, Any]] = []
+    for word in words:
+        if float(word.get("start") or 0.0) >= final_duration:
+            break
+        if chunk and float(word.get("start") or 0.0) - float(chunk[-1].get("end") or 0.0) >= 0.42:
+            captions.append(caption_from_word_chunk(chunk, final_duration))
+            chunk = []
+        chunk.append(word)
+        text = " ".join(str(item.get("word") or "").strip() for item in chunk).strip()
+        token = str(word.get("word") or "").strip()
+        if len(chunk) >= 4 or len(text) >= 30 or token.endswith((".", "?", "!")):
+            captions.append(caption_from_word_chunk(chunk, final_duration))
+            chunk = []
+    if chunk:
+        captions.append(caption_from_word_chunk(chunk, final_duration))
+    captions = [item for item in captions if item["end"] - item["start"] >= 0.12]
+    for index in range(len(captions) - 1):
+        next_start = float(captions[index + 1]["start"])
+        if float(captions[index]["end"]) > next_start:
+            captions[index]["end"] = round(max(float(captions[index]["start"]) + 0.12, next_start), 3)
+    return captions
+
+
+def caption_from_word_chunk(words: list[dict[str, Any]], final_duration: float) -> dict[str, Any]:
+    start = max(0.0, min(final_duration, float(words[0]["start"])))
+    end = max(start + 0.12, min(final_duration, float(words[-1]["end"]) + 0.04))
+    return {
+        "start": round(start, 3),
+        "end": round(end, 3),
+        "text": " ".join(str(item["word"]).strip() for item in words).strip(),
+    }
 
 
 def detect_silences(video_path: Path, noise: str, silence_duration: float, log_path: Path) -> list[dict[str, float]]:
@@ -252,16 +386,16 @@ def source_scene_timeline(config: dict[str, Any], variant_path: Path) -> list[di
     variant = read_json(variant_path)
     timeline_clips = [Path(path) for path in variant.get("timeline_clips", [])]
     prompts_by_id: dict[str, str] = {}
-    scene_order: list[tuple[str, str]] = []
+    scene_order: list[tuple[str, str, str]] = []
     for hook in config.get("hooks", []):
-        scene_order.append((str(hook.get("id")), str(hook.get("prompt", ""))))
+        scene_order.append((str(hook.get("id")), str(hook.get("prompt", "")), scene_dialogue_text(hook)))
     for main in config.get("meals", []) + config.get("mains", []):
         for segment in main.get("segments", []):
-            scene_order.append((str(segment.get("id")), str(segment.get("prompt", ""))))
+            scene_order.append((str(segment.get("id")), str(segment.get("prompt", "")), scene_dialogue_text(segment)))
     for cta in config.get("ctas", []):
-        scene_order.append((str(cta.get("id")), str(cta.get("prompt", ""))))
-    for scene_id, prompt in scene_order:
-        dialogue = extract_native_dialogue(prompt)
+        scene_order.append((str(cta.get("id")), str(cta.get("prompt", "")), scene_dialogue_text(cta)))
+    for scene_id, prompt, explicit_dialogue in scene_order:
+        dialogue = explicit_dialogue or extract_native_dialogue(prompt)
         if dialogue:
             prompts_by_id[scene_id] = dialogue
 
@@ -274,6 +408,14 @@ def source_scene_timeline(config: dict[str, Any], variant_path: Path) -> list[di
         timeline.append({"id": scene_id, "start": cursor, "end": cursor + duration, "text": text})
         cursor += duration
     return timeline
+
+
+def scene_dialogue_text(scene: dict[str, Any]) -> str:
+    for key in ("dialogue", "script", "native_dialogue", "spoken_line"):
+        text = str(scene.get(key) or "").strip()
+        if text:
+            return text.strip().strip('"')
+    return ""
 
 
 def extract_native_dialogue(prompt: str) -> str:

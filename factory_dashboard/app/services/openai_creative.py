@@ -148,6 +148,25 @@ product, aesthetic, location, composition, or storyboard reference. Describe the
 scene prompts so downstream image and video generation can use them. Do not import identity or branding from any
 other account, and do not claim an attachment was used when none is listed.
 
+FACTUAL LOCK:
+Preserve every user-supplied name, number, amount, currency, date, time, product term, and quoted phrase literally.
+Never convert pesos to dollars, never leave a currency symbol ambiguous, and never embellish a factual value. In
+Spanish, write the currency unit in the spoken line (for example, "ochenta mil pesos"), not just "$80,000".
+
+SPEAKER AND COMMUNICATION LOCK:
+Distinguish a human presenter, a software AI agent, and a lead as different entities. A software agent is shown as
+a stable call/chat event on the approved system interface and heard as its own consistent voice; never depict it as
+a random human employee wearing a headset. If the concept includes a two-way call or chat, write each turn as its
+own chronological leaf: agent asks, lead answers, agent responds. Make the active speaker/source unambiguous in
+subject_label, subject_placement_hint, script, and prompt. Never switch speakers inside one leaf and never make the
+presenter answer on behalf of the software agent or lead.
+
+CAPTION LOCK:
+Do not generate subtitle copy, production labels, scene IDs, CTA labels, or descriptive metadata for display. The
+renderer creates subtitles only after the final stitched audio is finished by transcribing its real word timestamps.
+hook_text is the only planned visual overlay; keep it sentence case, direct, clean, under eight words, and free of
+production terms such as HOOK, CTA, SCENE, DESCRIPTION, or VISUAL.
+
 CURRENT DRAFT, if this is a revision:
 {current_json}
 
@@ -172,9 +191,9 @@ Return only valid JSON with this shape:
     "language": "...",
     "defaults": {{"aspect_ratio": "9:16", "duration_seconds": 5, "resolution": "720p"}},
     "master_prompt": "account-specific consistency and UGC rules",
-    "hooks": [{{"id":"...","title":"...","hook_text":"direct scroll-stopping overlay under 8 words","duration_seconds":4,"subject_label":"...","subject_placement_hint":"...","script":"...","prompt":"... Native dialogue: ..."}}],
-    "mains": [{{"id":"...","title":"...","prompt":"...","segments":[{{"id":"...","duration_seconds":5,"subject_label":"...","subject_placement_hint":"...","script":"...","prompt":"... Native dialogue: ..."}}]}}],
-    "ctas": [{{"id":"...","title":"...","duration_seconds":5,"subject_label":"...","subject_placement_hint":"...","script":"...","prompt":"... Native dialogue: ..."}}],
+    "hooks": [{{"id":"...","title":"...","hook_text":"direct scroll-stopping overlay under 8 words","duration_seconds":4,"character_visible":true,"speaker_role":"presenter","subject_label":"...","subject_placement_hint":"...","script":"...","prompt":"... Native dialogue: ..."}}],
+    "mains": [{{"id":"...","title":"...","prompt":"...","segments":[{{"id":"...","duration_seconds":5,"character_visible":false,"speaker_role":"ai_agent | lead | presenter | narrator | none","subject_label":"...","subject_placement_hint":"...","script":"...","prompt":"... Native dialogue: ..."}}]}}],
+    "ctas": [{{"id":"...","title":"...","duration_seconds":5,"character_visible":true,"speaker_role":"presenter","subject_label":"...","subject_placement_hint":"...","script":"...","prompt":"... Native dialogue: ..."}}],
     "variants": {{"count":1,"min_total_seconds":25,"max_total_seconds":45,"seed":20260804,"stitch_leaf_segments":true}}
   }}
 }}
